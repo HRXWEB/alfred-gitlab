@@ -5,7 +5,14 @@ from ipaddress import ip_address
 from urllib.parse import urlsplit, urlunsplit
 
 from cache_state import CacheState, projects_key
-from hosts import get_default_profile, valid_api_url
+from host_values import InvalidApiUrlError, valid_api_url
+from hosts import (
+    ensure_profiles,
+    get_default_profile,
+    set_default_token,
+    set_default_url,
+    token_account,
+)
 from workflow import ICON_INFO, ICON_WARNING, PasswordNotFound, Workflow3
 from workflow.background import is_running, run_in_background
 
@@ -81,27 +88,29 @@ def main(wf):
 
     if args.apikey:  # Script was passed an API key
         log.info("Setting API Key")
-        wf.save_password("gitlab_api_key", args.apikey)
-        invalidate_default_projects(wf)
+        set_default_token(wf, args.apikey, CacheState(wf))
         return 0  # 0 means script exited cleanly
 
     if args.apiurl:
         configured_url = valid_api_url(args.apiurl)
         if configured_url is None:
-            raise ValueError("GitLab API URL must be an absolute HTTP(S) URL")
+            raise InvalidApiUrlError
         log.info("Setting GitLab API URL")
         if configured_url.scheme == "http":
             log.warning("GitLab API token transport is not encrypted over HTTP")
-        wf.settings["api_url"] = args.apiurl
-        invalidate_default_projects(wf)
+        set_default_url(wf, args.apiurl, CacheState(wf))
         return 0
 
     ####################################################################
     # Check that we have an API key saved
     ####################################################################
 
+    ensure_profiles(wf, CacheState(wf))
+    profile = get_default_profile(wf)
     try:
-        wf.get_password("gitlab_api_key")
+        if profile is None:
+            raise PasswordNotFound()
+        wf.get_password(token_account(profile["id"]))
     except PasswordNotFound:  # API key has not yet been set
         wf.add_item(
             "No API key set.",
@@ -140,7 +149,6 @@ def main(wf):
         )
 
     # Start update script if cached data is too old (or doesn't exist)
-    profile = get_default_profile(wf)
     project_cache_key = (
         projects_key(profile["id"]) if profile is not None else "projects"
     )
@@ -162,7 +170,11 @@ def main(wf):
 
     # Loop through the returned posts and add an item for each to
     # the list of results for Alfred
-    api_url = wf.settings.get("api_url", "https://gitlab.com/api/v4/projects")
+    api_url = (
+        profile["api_url"]
+        if profile is not None
+        else "https://gitlab.com/api/v4/projects"
+    )
 
     for project in projects:
         wf.add_item(

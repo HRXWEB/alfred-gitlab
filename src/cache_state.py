@@ -92,6 +92,31 @@ def status_key(profile_id: str) -> str:
 class CacheState:
     workflow: CacheWorkflow
 
+    def load_legacy_projects(self) -> Projects | None:
+        try:
+            cached = self.workflow.cached_data("projects", None, max_age=0)
+        except CACHE_ERRORS:
+            return None
+        if not isinstance(cached, list):
+            return None
+        projects: Projects = []
+        for project in cached:
+            if not isinstance(project, dict):
+                return None
+            projects.append(project)
+        return projects
+
+    def migrate_legacy_projects(
+        self,
+        profile_id: str,
+        projects: Sequence[Mapping[str, JSONValue]],
+    ) -> bool:
+        return self.store_projects(
+            profile_id,
+            self.current_generation(profile_id),
+            projects,
+        )
+
     def generation_path(self, profile_id: str) -> str:
         return self.workflow.datafile(f"{projects_key(profile_id)}.generation")
 

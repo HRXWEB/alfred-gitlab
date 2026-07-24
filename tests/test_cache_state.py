@@ -62,6 +62,24 @@ def test_profile_project_caches_do_not_overlap(tmp_path: Path) -> None:
     assert cache.load_projects(PROFILE_B) == [{"id": 2}]
 
 
+def test_legacy_projects_migrate_without_removing_legacy_cache(
+    tmp_path: Path,
+) -> None:
+    # Given: a valid v3.1 project cache
+    workflow = FakeWorkflow(tmp_path)
+    workflow.cache["projects"] = [{"id": 7}]
+    cache = cache_state.CacheState(workflow)
+
+    # When: the legacy projects migrate to a profile
+    projects = cache.load_legacy_projects()
+    assert projects is not None
+    cache.migrate_legacy_projects(PROFILE_A, projects)
+
+    # Then: both downgrade and profile-scoped caches remain available
+    assert workflow.cache["projects"] == [{"id": 7}]
+    assert cache.load_projects(PROFILE_A) == [{"id": 7}]
+
+
 def test_invalidation_rejects_only_same_profile_generation(
     tmp_path: Path,
 ) -> None:
