@@ -3,7 +3,6 @@
 import sys
 import argparse
 import pickle
-import re
 import subprocess
 from ipaddress import ip_address
 from urllib.parse import urlsplit, urlunsplit
@@ -11,10 +10,10 @@ from urllib.parse import urlsplit, urlunsplit
 from workflow import Workflow3, ICON_WARNING, ICON_INFO, PasswordNotFound
 from workflow.background import run_in_background, is_running
 from cache_state import invalidate_projects
+from hosts import valid_api_url
 
 log = None
 UPDATE_REPO = 'HRXWEB/alfred-gitlab'
-DOMAIN_LABEL = re.compile(r'^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$')
 CACHE_ERRORS = (
     pickle.UnpicklingError,
     EOFError,
@@ -31,35 +30,6 @@ def search_for_project(project):
     """Generate a string search key for a project"""
     elements = [project['name_with_namespace'], project['path_with_namespace']]
     return u' '.join(elements)
-
-
-def valid_api_url(api_url):
-    try:
-        configured_url = urlsplit(api_url)
-        hostname = configured_url.hostname
-        configured_url.port
-    except (TypeError, ValueError):
-        return None
-
-    if (
-        configured_url.scheme not in ('http', 'https')
-        or not hostname
-        or configured_url.username
-        or configured_url.password
-    ):
-        return None
-
-    try:
-        ip_address(hostname)
-    except ValueError:
-        domain = hostname.rstrip('.')
-        if (
-            len(domain) > 253
-            or not all(DOMAIN_LABEL.match(label) for label in domain.split('.'))
-        ):
-            return None
-
-    return configured_url
 
 
 def project_web_url(project_url, api_url):
