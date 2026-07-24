@@ -178,7 +178,27 @@ def test_status_storage_omits_unapproved_fields(tmp_path: Path) -> None:
     }
 
 
-def test_clear_profile_state_removes_only_selected_profile(
+def test_clear_rejects_writer_with_generation_captured_before_cleanup(
+    tmp_path: Path,
+) -> None:
+    # Given: a writer captured the initial profile generation
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+    captured_generation = cache.current_generation(PROFILE_A)
+    assert captured_generation == ""
+
+    # When: the profile is cleared before the writer publishes
+    cache.clear_profile_state(PROFILE_A)
+
+    # Then: cleanup advances the generation and rejects the stale writer
+    assert cache.current_generation(PROFILE_A)
+    assert not cache.store_projects(
+        PROFILE_A,
+        captured_generation,
+        [{"id": 1}],
+    )
+
+
+def test_clear_profile_state_preserves_coordination_and_clears_payloads(
     tmp_path: Path,
 ) -> None:
     # Given: complete cache state for two profiles
@@ -191,17 +211,21 @@ def test_clear_profile_state_removes_only_selected_profile(
     cache.invalidate_projects(PROFILE_A)
     generation_path = Path(cache.generation_path(PROFILE_A))
     lock_path = Path(cache.lock_path(PROFILE_A))
+    generation_before = cache.current_generation(PROFILE_A)
+    lock_inode_before = lock_path.stat().st_ino
     assert generation_path.exists()
     assert lock_path.exists()
 
     # When: profile A state is cleared
     cache.clear_profile_state(PROFILE_A)
 
-    # Then: all A state is gone and B state remains
+    # Then: A payloads are gone, coordination persists, and B remains
     assert cache.load_projects(PROFILE_A) is None
     assert cache.load_status(PROFILE_A) is None
-    assert not generation_path.exists()
-    assert not lock_path.exists()
+    assert generation_path.exists()
+    assert cache.current_generation(PROFILE_A) != generation_before
+    assert lock_path.exists()
+    assert lock_path.stat().st_ino == lock_inode_before
     assert cache.load_projects(PROFILE_B) == [{"id": 2}]
     assert cache.load_status(PROFILE_B) == {"ok": True}
 

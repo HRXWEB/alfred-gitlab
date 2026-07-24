@@ -8,7 +8,6 @@ import uuid
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Final, Protocol, TypedDict
 
 PROFILE_ID: Final = re.compile(r"^[0-9a-f]{32}$")
@@ -132,15 +131,7 @@ class CacheState:
 
     def invalidate_projects(self, profile_id: str) -> None:
         with self._exclusive_lock(profile_id):
-            generation_path = self.generation_path(profile_id)
-            temporary_path = f"{generation_path}.{uuid.uuid4().hex}"
-            with open(
-                temporary_path,
-                "w",
-                encoding="utf-8",
-            ) as generation_file:
-                _ = generation_file.write(uuid.uuid4().hex)
-            os.replace(temporary_path, generation_path)
+            self._rotate_generation(profile_id)
             self.workflow.cache_data(projects_key(profile_id), None)
 
     def store_projects(
@@ -199,12 +190,17 @@ class CacheState:
         )
 
     def clear_profile_state(self, profile_id: str) -> None:
-        lock_path = self.lock_path(profile_id)
         with self._exclusive_lock(profile_id):
+            self._rotate_generation(profile_id)
             self.workflow.cache_data(projects_key(profile_id), None)
             self.workflow.cache_data(status_key(profile_id), None)
-            Path(self.generation_path(profile_id)).unlink(missing_ok=True)
-        Path(lock_path).unlink(missing_ok=True)
+
+    def _rotate_generation(self, profile_id: str) -> None:
+        generation_path = self.generation_path(profile_id)
+        temporary_path = f"{generation_path}.{uuid.uuid4().hex}"
+        with open(temporary_path, "w", encoding="utf-8") as generation_file:
+            _ = generation_file.write(uuid.uuid4().hex)
+        os.replace(temporary_path, generation_path)
 
     @contextmanager
     def _exclusive_lock(self, profile_id: str) -> Generator[None, None, None]:
