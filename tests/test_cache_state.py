@@ -1,45 +1,222 @@
-from pathlib import Path
+from __future__ import annotations
+
+import pickle
 import sys
+from pathlib import Path
+
+import pytest
 
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 import cache_state
 
+PROFILE_A = "a" * 32
+PROFILE_B = "b" * 32
+
 
 class FakeWorkflow:
-    def __init__(self, data_dir):
-        self.data_dir = data_dir
-        self.cache_writes = []
+    def __init__(self, data_dir: Path) -> None:
+        self.data_dir: Path = data_dir
+        self.cache: dict[str, cache_state.CachePayload] = {}
+        self.read_errors: dict[str, Exception] = {}
 
-    def datafile(self, name):
+    def datafile(self, name: str) -> str:
         return str(self.data_dir / name)
 
-    def cache_data(self, name, value):
-        self.cache_writes.append((name, value))
+    def cache_data(
+        self,
+        name: str,
+        value: cache_state.CachePayload | None,
+    ) -> None:
+        if value is None:
+            _ = self.cache.pop(name, None)
+            return
+        self.cache[name] = value
+
+    def cached_data(
+        self,
+        name: str,
+        data_func: None = None,
+        *,
+        max_age: int = 60,
+    ) -> cache_state.CachePayload | None:
+        del data_func, max_age
+        error = self.read_errors.get(name)
+        if error is not None:
+            raise error
+        return self.cache.get(name)
 
 
-def test_invalidation_changes_generation_and_clears_projects(tmp_path):
+def test_profile_project_caches_do_not_overlap(tmp_path: Path) -> None:
+    # Given: two cache views over one workflow
     workflow = FakeWorkflow(tmp_path)
+    cache = cache_state.CacheState(workflow)
 
-    before = cache_state.current_generation(workflow)
-    cache_state.invalidate_projects(workflow)
-    after = cache_state.current_generation(workflow)
+    # When: each profile stores a different project list
+    assert cache.store_projects(PROFILE_A, "", [{"id": 1}])
+    assert cache.store_projects(PROFILE_B, "", [{"id": 2}])
 
-    assert after != before
-    assert workflow.cache_writes == [("projects", None)]
+    # Then: each profile reads only its own projects
+    assert cache.load_projects(PROFILE_A) == [{"id": 1}]
+    assert cache.load_projects(PROFILE_B) == [{"id": 2}]
 
 
-def test_old_generation_cannot_write_projects(tmp_path):
+def test_invalidation_rejects_only_same_profile_generation(
+    tmp_path: Path,
+) -> None:
+    # Given: generation snapshots for two profiles
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+    generation_a = cache.current_generation(PROFILE_A)
+    generation_b = cache.current_generation(PROFILE_B)
+
+    # When: only profile A is invalidated
+    cache.invalidate_projects(PROFILE_A)
+
+    # Then: A's stale write is rejected and B's write remains valid
+    assert not cache.store_projects(PROFILE_A, generation_a, [])
+    assert cache.store_projects(PROFILE_B, generation_b, [])
+
+
+def test_profile_status_caches_do_not_overlap(tmp_path: Path) -> None:
+    # Given: distinct failure status for two profiles
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+    status_a = {
+        "ok": False,
+        "category": "HTTPErrorStatus",
+        "http_status": 401,
+        "message": "HTTP 401",
+        "updated_at": 1784880000,
+    }
+    status_b = {
+        "ok": False,
+        "category": "ConnectionError",
+        "message": "Connection failed",
+        "updated_at": 1784880001,
+    }
+
+    # When: each profile stores its own status
+    cache.store_status(PROFILE_A, status_a)
+    cache.store_status(PROFILE_B, status_b)
+
+    # Then: the statuses remain isolated
+    assert cache.load_status(PROFILE_A) == status_a
+    assert cache.load_status(PROFILE_B) == status_b
+
+
+@pytest.mark.parametrize(
+    "invalid_cache",
+    [
+        {"id": 1},
+        "projects",
+        7,
+        [{"id": 1}, "invalid-project"],
+    ],
+)
+def test_invalid_project_cache_is_invalidated(
+    tmp_path: Path,
+    invalid_cache: cache_state.CachePayload,
+) -> None:
+    # Given: invalid cached project data for profile A
     workflow = FakeWorkflow(tmp_path)
-    old_generation = cache_state.current_generation(workflow)
+    cache = cache_state.CacheState(workflow)
+    key = cache_state.projects_key(PROFILE_A)
+    workflow.cache[key] = invalid_cache
+    generation = cache.current_generation(PROFILE_A)
 
-    cache_state.invalidate_projects(workflow)
-    written = cache_state.store_projects(
-        workflow,
-        old_generation,
-        [{"id": 1}],
-    )
+    # When: the invalid cache is loaded
+    projects = cache.load_projects(PROFILE_A)
 
-    assert written is False
-    assert workflow.cache_writes == [("projects", None)]
+    # Then: only that cache is discarded and its generation changes
+    assert projects is None
+    assert key not in workflow.cache
+    assert cache.current_generation(PROFILE_A) != generation
+
+
+def test_corrupt_project_cache_is_invalidated(tmp_path: Path) -> None:
+    # Given: a project cache that cannot be deserialized
+    workflow = FakeWorkflow(tmp_path)
+    cache = cache_state.CacheState(workflow)
+    key = cache_state.projects_key(PROFILE_A)
+    workflow.read_errors[key] = pickle.UnpicklingError("invalid cache")
+    generation = cache.current_generation(PROFILE_A)
+
+    # When: the corrupt cache is loaded
+    projects = cache.load_projects(PROFILE_A)
+
+    # Then: the affected profile is invalidated
+    assert projects is None
+    assert cache.current_generation(PROFILE_A) != generation
+
+
+def test_status_storage_omits_unapproved_fields(tmp_path: Path) -> None:
+    # Given: a status mapping with sensitive diagnostic fields
+    workflow = FakeWorkflow(tmp_path)
+    cache = cache_state.CacheState(workflow)
+    status = {
+        "ok": False,
+        "category": "HTTPErrorStatus",
+        "http_status": 401,
+        "message": "HTTP 401",
+        "updated_at": 1784880000,
+        "url": "https://gitlab.example.test/api/v4/projects",
+        "response_body": "secret response",
+        "traceback": "secret traceback",
+        "token": "secret token",
+    }
+
+    # When: the status is stored
+    cache.store_status(PROFILE_A, status)
+
+    # Then: only the approved status fields reach the cache
+    assert workflow.cache[cache_state.status_key(PROFILE_A)] == {
+        "ok": False,
+        "category": "HTTPErrorStatus",
+        "http_status": 401,
+        "message": "HTTP 401",
+        "updated_at": 1784880000,
+    }
+
+
+def test_clear_profile_state_removes_only_selected_profile(
+    tmp_path: Path,
+) -> None:
+    # Given: complete cache state for two profiles
+    workflow = FakeWorkflow(tmp_path)
+    cache = cache_state.CacheState(workflow)
+    assert cache.store_projects(PROFILE_A, "", [{"id": 1}])
+    assert cache.store_projects(PROFILE_B, "", [{"id": 2}])
+    cache.store_status(PROFILE_A, {"ok": True})
+    cache.store_status(PROFILE_B, {"ok": True})
+    cache.invalidate_projects(PROFILE_A)
+    generation_path = Path(cache.generation_path(PROFILE_A))
+    lock_path = Path(cache.lock_path(PROFILE_A))
+    assert generation_path.exists()
+    assert lock_path.exists()
+
+    # When: profile A state is cleared
+    cache.clear_profile_state(PROFILE_A)
+
+    # Then: all A state is gone and B state remains
+    assert cache.load_projects(PROFILE_A) is None
+    assert cache.load_status(PROFILE_A) is None
+    assert not generation_path.exists()
+    assert not lock_path.exists()
+    assert cache.load_projects(PROFILE_B) == [{"id": 2}]
+    assert cache.load_status(PROFILE_B) == {"ok": True}
+
+
+@pytest.mark.parametrize(
+    "profile_id",
+    ["", "A" * 32, "a" * 31, "a" * 33, "../projects", "g" * 32],
+)
+def test_invalid_profile_id_is_rejected(
+    tmp_path: Path,
+    profile_id: str,
+) -> None:
+    # Given: a cache service and an unsafe profile identifier
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+
+    # When / Then: the identifier is rejected before path construction
+    with pytest.raises(cache_state.InvalidProfileIdError):
+        _ = cache.current_generation(profile_id)

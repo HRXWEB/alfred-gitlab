@@ -1,14 +1,18 @@
-from pathlib import Path
+import pickle
 import plistlib
 import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
 
+import cache_state
 import gitlab
+
+PROFILE_ID = "a" * 32
 
 
 def test_updates_are_loaded_from_the_fork():
@@ -26,7 +30,16 @@ class FakeLogger:
 class FakeWorkflow:
     def __init__(self, args):
         self.args = args
-        self.settings = {}
+        self.settings = {
+            "hosts": [
+                {
+                    "id": PROFILE_ID,
+                    "name": "gitlab.example.com",
+                    "api_url": ("https://gitlab.example.com/api/v4/projects"),
+                }
+            ],
+            "default_host_id": PROFILE_ID,
+        }
         self.saved_passwords = []
         self.cache_writes = []
         self.data_dir = tempfile.TemporaryDirectory()
@@ -50,10 +63,7 @@ def test_project_web_url_uses_configured_domain():
         "http://gitlab.example.com/api/v4/projects",
     )
 
-    assert result == (
-        "http://gitlab.example.com/"
-        "teams/sample-project?tab=readme#usage"
-    )
+    assert result == ("http://gitlab.example.com/teams/sample-project?tab=readme#usage")
 
 
 def test_project_web_url_preserves_url_for_configured_ipv4():
@@ -119,21 +129,17 @@ def test_setting_api_key_invalidates_projects_cache():
     gitlab.main(workflow)
 
     assert workflow.saved_passwords == [("gitlab_api_key", "new-token")]
-    assert workflow.cache_writes == [("projects", None)]
+    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
 
 
 def test_setting_api_url_invalidates_projects_cache():
-    workflow = FakeWorkflow(
-        ["--seturl", "http://gitlab.example.com/api/v4/projects"]
-    )
+    workflow = FakeWorkflow(["--seturl", "http://gitlab.example.com/api/v4/projects"])
     gitlab.log = FakeLogger()
 
     gitlab.main(workflow)
 
-    assert workflow.settings == {
-        "api_url": "http://gitlab.example.com/api/v4/projects"
-    }
-    assert workflow.cache_writes == [("projects", None)]
+    assert workflow.settings["api_url"] == ("http://gitlab.example.com/api/v4/projects")
+    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
 
 
 def test_setting_invalid_api_url_is_rejected():
@@ -143,21 +149,21 @@ def test_setting_invalid_api_url_is_rejected():
     with pytest.raises(ValueError):
         gitlab.main(workflow)
 
-    assert workflow.settings == {}
+    assert "api_url" not in workflow.settings
     assert workflow.cache_writes == []
 
 
 def test_corrupt_projects_cache_is_invalidated():
     workflow = FakeWorkflow([])
     workflow.cached_data = lambda *args, **kwargs: (_ for _ in ()).throw(
-        gitlab.pickle.UnpicklingError("invalid cache")
+        pickle.UnpicklingError("invalid cache")
     )
     gitlab.log = FakeLogger()
 
     result = gitlab.load_cached_projects(workflow)
 
     assert result is None
-    assert workflow.cache_writes == [("projects", None)]
+    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
 
 
 @pytest.mark.parametrize(
@@ -170,15 +176,13 @@ def test_corrupt_projects_cache_is_invalidated():
 )
 def test_stale_pickle_dependency_is_invalidated(error):
     workflow = FakeWorkflow([])
-    workflow.cached_data = lambda *args, **kwargs: (_ for _ in ()).throw(
-        error
-    )
+    workflow.cached_data = lambda *args, **kwargs: (_ for _ in ()).throw(error)
     gitlab.log = FakeLogger()
 
     result = gitlab.load_cached_projects(workflow)
 
     assert result is None
-    assert workflow.cache_writes == [("projects", None)]
+    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
 
 
 @pytest.mark.parametrize("cached_value", [{"id": 1}, "projects", 7])
@@ -190,7 +194,7 @@ def test_invalid_projects_cache_type_is_invalidated(cached_value):
     result = gitlab.load_cached_projects(workflow)
 
     assert result is None
-    assert workflow.cache_writes == [("projects", None)]
+    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
 
 
 def test_refresh_reloads_projects_synchronously(monkeypatch):
@@ -205,7 +209,7 @@ def test_refresh_reloads_projects_synchronously(monkeypatch):
 
     result = gitlab.main(workflow)
 
-    assert workflow.cache_writes == [("projects", None)]
+    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
     assert commands == [[sys.executable, str(SRC_DIR / "update.py")]]
     assert result == 0
 

@@ -1,6 +1,7 @@
-from pathlib import Path
 import runpy
 import sys
+from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -8,6 +9,8 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 import update
+
+PROFILE_ID = "a" * 32
 
 
 class FakeLogger:
@@ -19,7 +22,7 @@ class FakeLogger:
 
 
 class FakeResponse:
-    headers = {}
+    headers: ClassVar[dict[str, str]] = {}
 
     def raise_for_status(self):
         pass
@@ -31,7 +34,15 @@ class FakeResponse:
 class FakeWorkflow:
     def __init__(self):
         self.settings = {
-            "api_url": "https://gitlab.example.com/api/v4/projects"
+            "api_url": "https://gitlab.example.com/api/v4/projects",
+            "hosts": [
+                {
+                    "id": PROFILE_ID,
+                    "name": "gitlab.example.com",
+                    "api_url": ("https://gitlab.example.com/api/v4/projects"),
+                }
+            ],
+            "default_host_id": PROFILE_ID,
         }
 
     def get_password(self, name):
@@ -52,9 +63,9 @@ def test_generation_is_captured_before_credentials(monkeypatch):
     events = []
     update.log = FakeLogger()
     monkeypatch.setattr(
-        update,
+        update.CacheState,
         "current_generation",
-        lambda wf: events.append("generation") or "generation-1",
+        lambda self, profile_id: events.append("generation") or "generation-1",
     )
     monkeypatch.setattr(
         workflow,
@@ -63,9 +74,9 @@ def test_generation_is_captured_before_credentials(monkeypatch):
     )
     monkeypatch.setattr(update, "get_projects", lambda key, url: [])
     monkeypatch.setattr(
-        update,
+        update.CacheState,
         "store_projects",
-        lambda wf, generation, projects: True,
+        lambda self, profile_id, generation, projects: True,
     )
 
     update.main(workflow)
