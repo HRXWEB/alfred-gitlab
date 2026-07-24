@@ -2,8 +2,6 @@ from host_registry import (
     HOST_SCHEMA_VERSION,
     HostRegistry,
     RegistryCallbacks,
-    SettingsStore,
-    WorkflowLike,
     add_or_update_profile,
     get_default_profile,
     get_profiles,
@@ -11,6 +9,7 @@ from host_registry import (
     remove_profile,
     token_account,
 )
+from host_registry_state import SettingsStore, WorkflowLike
 from host_services import (
     ensure_profiles,
     migrate_legacy_profile,

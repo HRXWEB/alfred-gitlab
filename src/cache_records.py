@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import pickle
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Final, TypedDict
+from typing import Final, TypedDict, Union
 
 PROFILE_ID: Final = re.compile(r"^[0-9a-f]{32}$")
-JSONScalar = str | int | float | bool | None
-JSONValue = JSONScalar | list["JSONValue"] | dict[str, "JSONValue"]
+JSONScalar = Union[str, int, float, bool, None]  # noqa: UP007
+JSONValue = Union[  # noqa: UP007
+    JSONScalar,
+    list["JSONValue"],
+    dict[str, "JSONValue"],
+]
 Project = dict[str, JSONValue]
 Projects = list[Project]
 CacheValue = JSONValue
@@ -31,7 +37,7 @@ class StatusRecord(TypedDict, total=False):
     updated_at: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class InvalidProfileIdError(ValueError):
     profile_id: str
 
@@ -39,7 +45,7 @@ class InvalidProfileIdError(ValueError):
         return "Invalid GitLab host profile ID"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class InvalidStatusError(ValueError):
     field: str
 

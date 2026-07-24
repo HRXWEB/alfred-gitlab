@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import fcntl
 import os
-import uuid
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Protocol
 
+import cache_paths
 from cache_records import (
     CACHE_ERRORS,
     PROFILE_ID,
@@ -27,7 +27,7 @@ from cache_records import (
     validate_profile_id,
 )
 
-CACHE_WRITE_FAILURES = (Exception,)
+CACHE_STATE_FAILURES = (OSError, *CACHE_ERRORS)
 __all__ = [
     "CACHE_ERRORS",
     "PROFILE_ID",
@@ -66,7 +66,11 @@ class CacheWorkflow(Protocol):
     ) -> CachePayload | None: ...
 
 
-@dataclass(frozen=True, slots=True)
+class RetiredProfileError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class CacheState:
     workflow: CacheWorkflow
 
@@ -96,20 +100,16 @@ class CacheState:
         )
 
     def generation_path(self, profile_id: str) -> str:
-        return self.workflow.datafile(f"{projects_key(profile_id)}.generation")
+        return cache_paths.generation_path(self.workflow, profile_id)
 
     def lock_path(self, profile_id: str) -> str:
-        return self.workflow.datafile(f"{projects_key(profile_id)}.lock")
+        return cache_paths.lock_path(self.workflow, profile_id)
+
+    def retired_path(self, profile_id: str) -> str:
+        return cache_paths.retired_path(self.workflow, profile_id)
 
     def current_generation(self, profile_id: str) -> str:
-        try:
-            with open(
-                self.generation_path(profile_id),
-                encoding="utf-8",
-            ) as generation_file:
-                return generation_file.read()
-        except FileNotFoundError:
-            return ""
+        return cache_paths.current_generation(self.workflow, profile_id)
 
     def load_projects(self, profile_id: str) -> Projects | None:
         with self._exclusive_lock(profile_id):
@@ -146,6 +146,8 @@ class CacheState:
 
     def begin_refresh(self, profile_id: str) -> str:
         with self._exclusive_lock(profile_id):
+            if os.path.exists(self.retired_path(profile_id)):
+                raise RetiredProfileError(profile_id)
             return self._rotate_generation(profile_id)
 
     def store_projects(
@@ -190,7 +192,7 @@ class CacheState:
                     [dict(project) for project in projects],
                 )
                 self.workflow.cache_data(profile_status_key, None)
-            except CACHE_WRITE_FAILURES:
+            except Exception:  #noqa: BROAD_EXCEPT_OK
                 self.workflow.cache_data(project_key, old_projects)
                 self.workflow.cache_data(profile_status_key, old_status)
                 raise
@@ -246,14 +248,32 @@ class CacheState:
             self.workflow.cache_data(projects_key(profile_id), None)
             self.workflow.cache_data(status_key(profile_id), None)
 
+    def retire_profile(self, profile_id: str) -> None:
+        with self._exclusive_lock(profile_id):
+            retired_path = self.retired_path(profile_id)
+            with open(retired_path, "w", encoding="utf-8"):
+                pass
+            try:
+                _ = self._rotate_generation(profile_id)
+                self.workflow.cache_data(projects_key(profile_id), None)
+                self.workflow.cache_data(status_key(profile_id), None)
+            except CACHE_STATE_FAILURES:
+                try:
+                    os.unlink(retired_path)
+                except FileNotFoundError as error:
+                    _ = error
+                raise
+
+    def restore_profile(self, profile_id: str) -> None:
+        with self._exclusive_lock(profile_id):
+            try:
+                os.unlink(self.retired_path(profile_id))
+            except FileNotFoundError as error:
+                _ = error
+            _ = self._rotate_generation(profile_id)
+
     def _rotate_generation(self, profile_id: str) -> str:
-        generation_path = self.generation_path(profile_id)
-        temporary_path = f"{generation_path}.{uuid.uuid4().hex}"
-        generation = uuid.uuid4().hex
-        with open(temporary_path, "w", encoding="utf-8") as generation_file:
-            _ = generation_file.write(generation)
-        os.replace(temporary_path, generation_path)
-        return generation
+        return cache_paths.rotate_generation(self.workflow, profile_id)
 
     @contextmanager
     def _exclusive_lock(self, profile_id: str) -> Generator[None, None, None]:

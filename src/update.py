@@ -4,11 +4,11 @@ import argparse
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Literal, assert_never
+from typing import Literal, Union
 
 import mureq
 from cache_records import Projects
-from cache_state import CacheState
+from cache_state import CacheState, RetiredProfileError
 from host_values import HostProfile
 from hosts import token_account
 from refresh_runtime import (
@@ -23,14 +23,14 @@ MAX_REFRESH_WORKERS = 4
 PROFILE_FETCH_FAILURES = (PasswordNotFound, mureq.HTTPException)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class RefreshSuccess:
     host: str
     project_count: int
     ok: Literal[True] = True
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class RefreshFailure:
     host: str
     category: str
@@ -38,7 +38,7 @@ class RefreshFailure:
     ok: Literal[False] = False
 
 
-RefreshResult = RefreshSuccess | RefreshFailure
+RefreshResult = Union[RefreshSuccess, RefreshFailure]  # noqa: UP007
 
 
 def get_projects(api_key: str, url: str) -> Projects:
@@ -61,7 +61,14 @@ def refresh_profile(
     profile: HostProfile,
     cache: CacheState,
 ) -> RefreshResult:
-    generation = cache.begin_refresh(profile.id)
+    try:
+        generation = cache.begin_refresh(profile.id)
+    except RetiredProfileError:
+        return RefreshFailure(
+            host=profile.name,
+            category="RetiredProfile",
+            http_status=None,
+        )
     try:
         api_key = workflow.get_password(token_account(profile.id))
         projects = get_projects(api_key, profile.api_url)
@@ -119,13 +126,10 @@ def refresh_summary(results: Sequence[RefreshResult]) -> str:
     refreshed = 0
     failed = 0
     for result in results:
-        match result:
-            case RefreshSuccess():
-                refreshed += 1
-            case RefreshFailure():
-                failed += 1
-            case unreachable:
-                assert_never(unreachable)
+        if isinstance(result, RefreshSuccess):
+            refreshed += 1
+        else:
+            failed += 1
     return f"{refreshed} refreshed, {failed} failed"
 
 
@@ -143,13 +147,7 @@ def _default_workers() -> RefreshWorkers:
 
 
 def _exit_code(result: RefreshResult) -> int:
-    match result:
-        case RefreshSuccess():
-            return 0
-        case RefreshFailure():
-            return 1
-        case unreachable:
-            assert_never(unreachable)
+    return 0 if isinstance(result, RefreshSuccess) else 1
 
 
 def main(workflow: RefreshWorkflow) -> int:

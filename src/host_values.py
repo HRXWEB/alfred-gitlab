@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import shlex
 from dataclasses import dataclass
@@ -25,13 +27,13 @@ class ProfileRecord(TypedDict):
     name_source: NameSource
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class InvalidApiUrlError(ValueError):
     def __str__(self) -> str:
         return "GitLab API URL must be an absolute HTTP(S) URL"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class InvalidHostNameError(ValueError):
     reason: str
 
@@ -39,20 +41,20 @@ class InvalidHostNameError(ValueError):
         return f"Invalid GitLab host name: {self.reason}"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class InvalidHostCommandError(ValueError):
     def __str__(self) -> str:
         return "Usage: glhostadd [name] <api_url> <token>"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class ProfileDraft:
     name: str | None
     api_url: str
     token: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class HostProfile:
     id: ProfileId
     name: str
@@ -60,7 +62,7 @@ class HostProfile:
     name_source: NameSource
 
     @classmethod
-    def from_record(cls, record: ProfileRecord) -> "HostProfile":
+    def from_record(cls, record: ProfileRecord) -> HostProfile:
         return cls(
             id=ProfileId(record["id"]),
             name=record["name"],

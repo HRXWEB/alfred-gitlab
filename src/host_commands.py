@@ -17,7 +17,7 @@ from host_values import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class HostAddResult:
     message: str
     uses_http: bool
@@ -39,7 +39,9 @@ class HostCommandCache(Protocol):
 
     def invalidate_projects(self, profile_id: str) -> None: ...
 
-    def clear_profile_state(self, profile_id: str) -> None: ...
+    def retire_profile(self, profile_id: str) -> None: ...
+
+    def restore_profile(self, profile_id: str) -> None: ...
 
 
 def add_host(
@@ -105,6 +107,7 @@ def _registry(
             invalidate=lambda _workflow, profile_id: cache.invalidate_projects(
                 profile_id
             ),
-            cleanup=lambda _workflow, profile_id: cache.clear_profile_state(profile_id),
+            cleanup=lambda _workflow, profile_id: cache.retire_profile(profile_id),
+            restore=lambda _workflow, profile_id: cache.restore_profile(profile_id),
         ),
     )

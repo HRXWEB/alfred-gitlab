@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Protocol
 
 from cache_state import Projects
-from host_migration_rollback import MigrationRollback, snapshot_registry_settings
+from host_migration_rollback import MigrationRollback
 from host_registry import (
     DEFAULT_API_URL,
     HOST_SCHEMA_VERSION,
     HostRegistry,
     RegistryCallbacks,
-    WorkflowLike,
     _save_profiles,
     _selected_default_id,
     get_default_profile,
@@ -16,9 +17,11 @@ from host_registry import (
     new_profile_id,
     token_account,
 )
+from host_registry_state import WorkflowLike, snapshot_registry_settings
 from host_values import (
     HostProfile,
     InvalidApiUrlError,
+    InvalidHostNameError,
     NameSource,
     ProfileDraft,
     ProfileId,
@@ -26,7 +29,7 @@ from host_values import (
     derive_host_name,
     valid_api_url,
 )
-from workflow import PasswordNotFound
+from workflow import KeychainError, PasswordNotFound
 from workflow.util import AcquisitionError
 
 
@@ -44,7 +47,7 @@ class HostCache(Protocol):
     def clear_profile_state(self, profile_id: str) -> None: ...
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class CacheMigrationConflictError(OSError):
     profile_id: str
 
@@ -111,7 +114,7 @@ def migrate_legacy_profile(
             if cache.migrate_legacy_projects(profile.id, legacy_projects) is False:
                 raise CacheMigrationConflictError(profile.id)
         _save_profiles(workflow, (profile,), profile.id)
-    except (OSError, AcquisitionError):
+    except (OSError, AcquisitionError, KeychainError):
         rollback = MigrationRollback(
             workflow=workflow,
             cache=cache,
@@ -173,6 +176,12 @@ def set_default_url(
         _save_profiles(workflow, (profile,), profile.id)
     else:
         profile = _updated_default_profile(selected, api_url)
+        if any(
+            stored["id"] != selected["id"]
+            and stored["name"] == profile.name
+            for stored in profiles
+        ):
+            raise InvalidHostNameError("name already exists")
         updated = tuple(
             profile
             if stored["id"] == selected["id"]

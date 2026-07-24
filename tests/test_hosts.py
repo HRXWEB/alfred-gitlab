@@ -8,7 +8,7 @@ sys.path.insert(0, str(SRC_DIR))
 
 import host_values
 import hosts
-from workflow import PasswordNotFound
+from workflow import KeychainError, PasswordNotFound
 
 
 class FakeWorkflow:
@@ -189,6 +189,25 @@ def test_legacy_migration_when_keychain_partially_writes_rolls_back_token():
     assert set(workflow.passwords) == {"gitlab_api_key"}
 
 
+def test_legacy_migration_rolls_back_real_keychain_error():
+    workflow = FakeWorkflow()
+    workflow.passwords["gitlab_api_key"] = "example-token"
+    cache = FakeCache()
+    original_save_password = workflow.save_password
+
+    def save_then_fail(account, password):
+        original_save_password(account, password)
+        raise KeychainError("keychain unavailable")
+
+    workflow.save_password = save_then_fail
+
+    with pytest.raises(KeychainError):
+        hosts.ensure_profiles(workflow, cache)
+
+    assert "hosts" not in workflow.settings
+    assert set(workflow.passwords) == {"gitlab_api_key"}
+
+
 def test_legacy_migration_when_cache_fails_rolls_back_scoped_credential():
     # Given: legacy state whose new profile cache cannot be written
     workflow = FakeWorkflow()
@@ -323,6 +342,38 @@ def test_set_default_url_when_name_was_derived_updates_name():
     assert updated["name_source"] == "auto"
 
 
+def test_set_default_url_rejects_derived_name_collision():
+    workflow = FakeWorkflow()
+    cache = FakeCache()
+    registry = hosts.HostRegistry(workflow)
+    first = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name=None,
+            api_url="https://first.example.test/api/v4/projects",
+            token="first-token",
+        ),
+    )
+    _ = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="second.example.test",
+            api_url="https://other.example.test/api/v4/projects",
+            token="second-token",
+        ),
+    )
+
+    with pytest.raises(host_values.InvalidHostNameError):
+        hosts.set_default_url(
+            workflow,
+            "https://second.example.test/api/v4/projects",
+            cache,
+        )
+
+    assert hosts.get_default_profile(workflow) == first
+    assert cache.invalidated == []
+
+
 def test_set_default_url_when_explicit_name_equals_hostname_preserves_name():
     # Given: an explicit alias whose text happens to equal the current hostname
     workflow = FakeWorkflow()
@@ -405,6 +456,40 @@ def test_remove_profile_when_settings_fail_retains_credential():
     )
 
 
+def test_remove_profile_when_settings_partially_commit_restores_registry():
+    # Given: a stored profile whose settings store mutates before failing
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    first = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="company",
+            api_url="https://gitlab.example.com/api/v4/projects",
+            token="company-token",
+        ),
+    )
+    second = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="public",
+            api_url="https://gitlab.example.test/api/v4/projects",
+            token="public-token",
+        ),
+    )
+    workflow.settings = PartiallyFailingSettings(workflow.settings)
+
+    # When: removal cannot commit the reduced registry after mutation
+    with pytest.raises(OSError, match="settings unavailable"):
+        hosts.remove_profile(registry, "company")
+
+    # Then: the original registry, default, and credential remain
+    assert hosts.get_profiles(workflow) == [first, second]
+    assert workflow.settings["default_host_id"] == first["id"]
+    assert workflow.passwords[hosts.token_account(first["id"])] == (
+        "company-token"
+    )
+
+
 def test_remove_profile_when_keychain_delete_fails_restores_registry():
     # Given: a stored profile whose credential cannot be deleted
     workflow = FakeWorkflow()
@@ -428,6 +513,33 @@ def test_remove_profile_when_keychain_delete_fails_restores_registry():
         hosts.remove_profile(registry, "company")
 
     # Then: the registry is restored with its credential intact
+    assert hosts.get_profiles(workflow) == [profile]
+    assert workflow.passwords[hosts.token_account(profile["id"])] == (
+        "example-token"
+    )
+
+
+def test_remove_profile_when_real_keychain_delete_fails_restores_registry():
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    profile = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="company",
+            api_url="https://gitlab.example.test/api/v4/projects",
+            token="example-token",
+        ),
+    )
+
+    def delete_then_fail(account):
+        del workflow.passwords[account]
+        raise KeychainError("keychain unavailable")
+
+    workflow.delete_password = delete_then_fail
+
+    with pytest.raises(KeychainError):
+        hosts.remove_profile(registry, "company")
+
     assert hosts.get_profiles(workflow) == [profile]
     assert workflow.passwords[hosts.token_account(profile["id"])] == (
         "example-token"
@@ -632,6 +744,37 @@ def test_update_profile_when_settings_fail_restores_previous_token():
         (account, "replacement-token"),
         (account, "old-token"),
     ]
+
+
+def test_update_profile_when_settings_partially_commit_restores_registry():
+    # Given: an existing profile whose settings store mutates before failing
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    first = hosts.add_or_update_profile(
+        registry,
+        hosts.ProfileDraft(
+            name="company",
+            api_url="https://old.example.com/api/v4/projects",
+            token="old-token",
+        ),
+    )
+    workflow.settings = PartiallyFailingSettings(workflow.settings)
+
+    # When: replacement profile settings cannot be saved after mutation
+    with pytest.raises(OSError, match="settings unavailable"):
+        hosts.add_or_update_profile(
+            registry,
+            hosts.ProfileDraft(
+                name="company",
+                api_url="https://new.example.com/api/v4/projects",
+                token="replacement-token",
+            ),
+        )
+
+    # Then: the original registry and Keychain token are restored
+    assert hosts.get_profiles(workflow) == [first]
+    assert workflow.settings["default_host_id"] == first["id"]
+    assert workflow.passwords[hosts.token_account(first["id"])] == "old-token"
 
 
 def test_get_default_profile_when_default_is_missing_uses_first_profile():

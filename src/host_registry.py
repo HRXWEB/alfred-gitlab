@@ -3,8 +3,13 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final, Literal, Protocol, TypedDict, overload
+from typing import Final
 
+from host_registry_state import (
+    WorkflowLike,
+    restore_registry_settings,
+    snapshot_registry_settings,
+)
 from host_values import (
     HostProfile,
     InvalidApiUrlError,
@@ -16,69 +21,11 @@ from host_values import (
     derive_host_name,
     valid_api_url,
 )
-from workflow import PasswordNotFound
+from workflow import KeychainError, PasswordNotFound
 from workflow.util import AcquisitionError
 
 HOST_SCHEMA_VERSION: Final = 1
 DEFAULT_API_URL: Final = "https://gitlab.com/api/v4/projects"
-
-
-class SettingsUpdate(TypedDict):
-    hosts: list[ProfileRecord]
-    default_host_id: str
-    host_schema_version: int
-
-
-class SettingsStore(Protocol):
-    @overload
-    def get(
-        self,
-        key: Literal["hosts"],
-        default: list[ProfileRecord],
-    ) -> list[ProfileRecord]: ...
-
-    @overload
-    def get(
-        self,
-        key: Literal["default_host_id"],
-        default: str,
-    ) -> str: ...
-
-    @overload
-    def get(
-        self,
-        key: Literal["host_schema_version"],
-        default: int,
-    ) -> int: ...
-
-    @overload
-    def get(
-        self,
-        key: Literal["api_url"],
-        default: str,
-    ) -> str: ...
-
-    def update(self, values: SettingsUpdate) -> None: ...
-
-    def __contains__(self, key: str) -> bool: ...
-
-    def __setitem__(
-        self,
-        key: str,
-        value: list[ProfileRecord] | str | int,
-    ) -> None: ...
-
-    def __delitem__(self, key: str) -> None: ...
-
-
-class WorkflowLike(Protocol):
-    settings: SettingsStore
-
-    def save_password(self, account: str, password: str) -> None: ...
-
-    def get_password(self, account: str) -> str: ...
-
-    def delete_password(self, account: str) -> None: ...
 
 
 RegistryCallback = Callable[[WorkflowLike, str], None]
@@ -88,13 +35,14 @@ def _ignore_profile(_workflow: WorkflowLike, _profile_id: str) -> None:
     return None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class RegistryCallbacks:
     invalidate: RegistryCallback = _ignore_profile
     cleanup: RegistryCallback = _ignore_profile
+    restore: RegistryCallback = _ignore_profile
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class UnknownHostProfileError(ValueError):
     name: str
 
@@ -102,7 +50,7 @@ class UnknownHostProfileError(ValueError):
         return f"Unknown GitLab host profile: {self.name}"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class HostRegistry:
     workflow: WorkflowLike
     callbacks: RegistryCallbacks = RegistryCallbacks()
@@ -124,6 +72,8 @@ class HostRegistry:
             raise InvalidHostNameError("whitespace is not allowed")
 
         profiles = self.profiles()
+        records = [profile.to_record() for profile in profiles]
+        settings_state = snapshot_registry_settings(self.workflow, records)
         existing = next(
             (profile for profile in profiles if profile.name == name),
             None,
@@ -151,26 +101,27 @@ class HostRegistry:
         if existing is not None:
             try:
                 previous_token = self.workflow.get_password(account)
-            except PasswordNotFound:
+            except PasswordNotFound as error:
+                _ = error
                 previous_token = None
-        self.workflow.save_password(account, draft.token)
         try:
+            self.workflow.save_password(account, draft.token)
             _save_profiles(
                 self.workflow,
                 updated,
                 _selected_default_id(self.workflow, updated),
             )
-        except (OSError, AcquisitionError):
-            if previous_token is None:
-                self.workflow.delete_password(account)
-            else:
-                self.workflow.save_password(account, previous_token)
+        except (OSError, AcquisitionError, KeychainError):
+            _restore_token(self.workflow, account, previous_token)
+            _ = restore_registry_settings(self.workflow, settings_state)
             raise
         self.callbacks.invalidate(self.workflow, profile_id)
         return replacement
 
     def remove(self, name: str) -> HostProfile:
         profiles = self.profiles()
+        records = [profile.to_record() for profile in profiles]
+        settings_state = snapshot_registry_settings(self.workflow, records)
         removed = next(
             (profile for profile in profiles if profile.name == name),
             None,
@@ -186,23 +137,41 @@ class HostRegistry:
         except PasswordNotFound:
             token = None
         self.callbacks.cleanup(self.workflow, removed.id)
-        _save_profiles(
-            self.workflow,
-            remaining,
-            _selected_default_id(self.workflow, remaining),
-        )
-        if token is not None:
-            try:
+        try:
+            _save_profiles(
+                self.workflow,
+                remaining,
+                _selected_default_id(self.workflow, remaining),
+            )
+            if token is not None:
                 self.workflow.delete_password(account)
-            except (OSError, AcquisitionError):
-                self.workflow.save_password(account, token)
-                _save_profiles(
-                    self.workflow,
-                    profiles,
-                    _selected_default_id(self.workflow, profiles),
-                )
-                raise
+        except (OSError, AcquisitionError, KeychainError):
+            try:
+                if token is not None:
+                    self.workflow.save_password(account, token)
+            except KeychainError as error:
+                _ = error
+            _ = restore_registry_settings(self.workflow, settings_state)
+            try:
+                self.callbacks.restore(self.workflow, removed.id)
+            except (OSError, AcquisitionError) as error:
+                _ = error
+            raise
         return removed
+
+
+def _restore_token(
+    workflow: WorkflowLike,
+    account: str,
+    previous_token: str | None,
+) -> None:
+    try:
+        if previous_token is None:
+            workflow.delete_password(account)
+        else:
+            workflow.save_password(account, previous_token)
+    except (PasswordNotFound, KeychainError) as error:
+        _ = error
 
 
 def token_account(profile_id: str) -> str:

@@ -19,16 +19,16 @@ class FreshnessWorkflow(Protocol):
 def refresh_stale_profile(
     workflow: FreshnessWorkflow,
     profile: ProfileRecord,
-) -> None:
+) -> bool:
     project_key = projects_key(profile["id"])
     update_name = f"update-{profile['id']}"
     if workflow.cached_data_fresh(
         project_key,
         max_age=PROJECT_CACHE_MAX_AGE,
     ):
-        return
+        return False
     if is_running(update_name):
-        return
+        return True
     _ = run_in_background(
         update_name,
         [
@@ -38,3 +38,4 @@ def refresh_stale_profile(
             profile["id"],
         ],
     )
+    return True

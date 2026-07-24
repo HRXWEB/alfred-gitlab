@@ -10,6 +10,8 @@ from workflow import ICON_WARNING
 
 
 class SearchWorkflow(FreshnessWorkflow, Protocol):
+    rerun: float
+
     def add_item(
         self,
         title: str,
@@ -41,8 +43,11 @@ def aggregate_projects(
 ) -> Projects:
     aggregate: Projects = []
     for profile in profiles:
-        refresh_stale_profile(workflow, profile)
-        projects = cache.load_projects(profile["id"]) or []
+        refreshing = refresh_stale_profile(workflow, profile)
+        cached_projects = cache.load_projects(profile["id"])
+        if refreshing and not cached_projects:
+            workflow.rerun = 0.5
+        projects = cached_projects or []
         for project in projects:
             retained = dict(project)
             retained["_host_id"] = profile["id"]

@@ -28,8 +28,10 @@ def project_web_url(project_url, api_url):
     if configured_url is None:
         return project_url
 
+    hostname = configured_url.hostname
+    assert hostname is not None
     try:
-        ip_address(configured_url.hostname)
+        ip_address(hostname)
     except ValueError:
         project = urlsplit(project_url)
         return urlunsplit(
@@ -59,6 +61,7 @@ def invalidate_default_projects(wf):
 
 
 def main(wf):
+    assert log is not None
     # build argument parser to parse script args and collect their
     # values
     parser = argparse.ArgumentParser()
@@ -80,7 +83,9 @@ def main(wf):
     ####################################################################
 
     # decide what to do based on arguments
+    cache = CacheState(wf)
     if args.refresh:
+        _ = ensure_profiles(wf, cache)
         summary = subprocess.check_output(
             [
                 sys.executable,
@@ -92,7 +97,6 @@ def main(wf):
         print(summary)
         return 0
 
-    cache = CacheState(wf)
     if args.hostadd is not None:
         _ = ensure_profiles(wf, cache)
         result = add_host(wf, cache, args.hostadd)

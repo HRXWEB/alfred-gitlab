@@ -63,6 +63,7 @@ class FakeWorkflow:
         self.items = []
         self.filter_calls = []
         self.feedback_count = 0
+        self.rerun = 0.0
         self.update_available = False
         self.data_dir = tempfile.TemporaryDirectory()
 
@@ -312,6 +313,26 @@ def test_aggregate_projects_keeps_retained_data_while_refresh_is_running(
 
     assert [project["id"] for project in projects] == [7]
     assert commands == []
+
+
+def test_aggregate_projects_reruns_while_empty_cache_refreshes(monkeypatch):
+    workflow = FakeWorkflow([])
+    company = profile(
+        PROFILE_ID,
+        "company",
+        "https://gitlab.company.example/api/v4/projects",
+    )
+    monkeypatch.setattr(search_refresh, "is_running", lambda _name: False)
+    monkeypatch.setattr(
+        search_refresh,
+        "run_in_background",
+        lambda _name, _command: None,
+    )
+
+    projects = gitlab.aggregate_projects(workflow, [company], FakeCache())
+
+    assert projects == []
+    assert workflow.rerun == 0.5
 
 
 def test_main_renders_each_project_with_its_host_context():
@@ -621,6 +642,31 @@ def test_refresh_runs_all_hosts_synchronously_and_prints_only_summary(
     ]
     assert capsys.readouterr().out == "2 refreshed, 1 failed\n"
     assert result == 0
+
+
+def test_refresh_migrates_legacy_state_before_running_update(
+    monkeypatch,
+    capsys,
+):
+    workflow = FakeWorkflow(["--refresh"])
+    workflow.settings = {
+        "api_url": "https://gitlab.example.test/api/v4/projects",
+    }
+    workflow.passwords = {"gitlab_api_key": "example-token"}
+    gitlab.log = FakeLogger()
+    monkeypatch.setattr(
+        gitlab.subprocess,
+        "check_output",
+        lambda _command, **_kwargs: "1 refreshed, 0 failed\n",
+    )
+
+    result = gitlab.main(workflow)
+
+    profiles = hosts.get_profiles(workflow)
+    assert result == 0
+    assert capsys.readouterr().out == "1 refreshed, 0 failed\n"
+    assert len(profiles) == 1
+    assert hosts.token_account(profiles[0]["id"]) in workflow.passwords
 
 
 def test_project_web_url_uses_configured_domain():

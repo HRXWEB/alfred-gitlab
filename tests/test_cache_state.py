@@ -302,6 +302,26 @@ def test_clear_profile_state_preserves_coordination_and_clears_payloads(
     assert cache.load_status(PROFILE_B) == {"ok": True}
 
 
+def test_retired_profile_rejects_refresh_started_after_removal(
+    tmp_path: Path,
+) -> None:
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+
+    cache.retire_profile(PROFILE_A)
+
+    with pytest.raises(cache_state.RetiredProfileError):
+        cache.begin_refresh(PROFILE_A)
+
+
+def test_restored_profile_can_refresh_after_failed_removal(tmp_path: Path) -> None:
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+    cache.retire_profile(PROFILE_A)
+
+    cache.restore_profile(PROFILE_A)
+
+    assert cache.begin_refresh(PROFILE_A)
+
+
 @pytest.mark.parametrize(
     "profile_id",
     ["", "A" * 32, "a" * 31, "a" * 33, "../projects", "g" * 32],

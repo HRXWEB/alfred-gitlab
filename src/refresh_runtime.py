@@ -40,13 +40,13 @@ WorkflowFactory = Callable[[], RefreshWorkflow]
 CacheFactory = Callable[[RefreshWorkflow], CacheState]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class RefreshWorkers:
     workflow_factory: WorkflowFactory
     cache_factory: CacheFactory
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class AlfredSettingsFacade:
     workflow: Workflow
 
@@ -72,7 +72,7 @@ class AlfredSettingsFacade:
         return self.workflow.settings.get(key, default)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class AlfredWorkflowFacade:
     workflow: Workflow
     settings: RefreshSettings = field(init=False)
