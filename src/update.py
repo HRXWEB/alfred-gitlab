@@ -1,57 +1,190 @@
-# encoding: utf-8
+from __future__ import annotations
 
-from workflow import Workflow, PasswordNotFound
-from cache_state import current_generation, store_projects
+import argparse
+from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from typing import Literal, Union
+
 import mureq
+from cache_records import Projects
+from cache_state import CacheState, RetiredProfileError
+from host_values import HostProfile
+from hosts import token_account
+from refresh_runtime import (
+    AlfredWorkflowFacade,
+    RefreshWorkers,
+    RefreshWorkflow,
+    default_workers,
+)
+from workflow import PasswordNotFound, Workflow
+
+MAX_REFRESH_WORKERS = 4
+PROFILE_FETCH_FAILURES = (PasswordNotFound, mureq.HTTPException)
 
 
-def get_projects(api_key, url):
-    return get_project_page(api_key, url, 1, [])
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
+class RefreshSuccess:
+    host: str
+    project_count: int
+    ok: Literal[True] = True
 
 
-def get_project_page(api_key, url, page, stored_projects):
-    log.info("Calling API page {page}".format(page=page))
-    response = mureq.get(
-        url,
-        headers={'PRIVATE-TOKEN': api_key},
-        params={'per_page': 100, 'page': page, 'membership': 'true'},
-    )
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
+class RefreshFailure:
+    host: str
+    category: str
+    http_status: int | None
+    ok: Literal[False] = False
 
-    # throw an error if request failed
-    # Workflow will catch this and show it to the user
-    response.raise_for_status()
 
-    # Parse the JSON returned by GitLab and extract the projects
-    projects = stored_projects + response.json()
+RefreshResult = Union[RefreshSuccess, RefreshFailure]  # noqa: UP007
 
-    next_page = response.headers.get('X-Next-Page')
-    if next_page:
-        projects = get_project_page(api_key, url, next_page, projects)
 
+def get_projects(api_key: str, url: str) -> Projects:
+    projects: Projects = []
+    page: str | int = 1
+    while page:
+        response = mureq.get(
+            url,
+            headers={"PRIVATE-TOKEN": api_key},
+            params={"per_page": 100, "page": page, "membership": "true"},
+        )
+        response.raise_for_status()
+        projects.extend(response.json())
+        page = response.headers.get("X-Next-Page", "")
     return projects
 
 
-def main(wf):
+def refresh_profile(
+    workflow: RefreshWorkflow,
+    profile: HostProfile,
+    cache: CacheState,
+) -> RefreshResult:
     try:
-        generation = current_generation(wf)
-        # Get API key from Keychain
-        api_key = wf.get_password('gitlab_api_key')
-        api_url = wf.settings.get('api_url', 'https://gitlab.com/api/v4/projects')
-        projects = get_projects(api_key, api_url)
-        stored = store_projects(wf, generation, projects)
+        generation = cache.begin_refresh(profile.id)
+    except RetiredProfileError:
+        return RefreshFailure(
+            host=profile.name,
+            category="RetiredProfile",
+            http_status=None,
+        )
+    try:
+        api_key = workflow.get_password(token_account(profile.id))
+        projects = get_projects(api_key, profile.api_url)
+    except PROFILE_FETCH_FAILURES as error:
+        status = getattr(error, "status_code", None)
+        http_status = (
+            status if isinstance(status, int) and not isinstance(status, bool) else None
+        )
+        failure = RefreshFailure(
+            host=profile.name,
+            category=type(error).__name__,
+            http_status=http_status,
+        )
+        _ = cache.publish_refresh_failure(
+            profile.id,
+            generation,
+            {
+                "ok": failure.ok,
+                "category": failure.category,
+                "http_status": failure.http_status,
+            },
+        )
+        return failure
 
-        # Record our progress in the log file
-        if stored:
-            log.debug('{} gitlab projects cached'.format(len(projects)))
+    if not cache.publish_refresh_success(
+        profile.id,
+        generation,
+        projects,
+    ):
+        return RefreshFailure(
+            host=profile.name,
+            category="OutdatedProfileGeneration",
+            http_status=None,
+        )
+    return RefreshSuccess(host=profile.name, project_count=len(projects))
+
+
+def refresh_profiles(
+    profiles: Sequence[HostProfile],
+    workers: RefreshWorkers,
+    max_workers: int = MAX_REFRESH_WORKERS,
+) -> list[RefreshResult]:
+    if not profiles:
+        return []
+    worker_count = min(MAX_REFRESH_WORKERS, max_workers, len(profiles))
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        futures = [
+            executor.submit(_refresh_in_worker, profile, workers)
+            for profile in profiles
+        ]
+        return [future.result() for future in futures]
+
+
+def refresh_summary(results: Sequence[RefreshResult]) -> str:
+    refreshed = 0
+    failed = 0
+    for result in results:
+        if isinstance(result, RefreshSuccess):
+            refreshed += 1
         else:
-            log.info('Discarded projects fetched with outdated settings')
+            failed += 1
+    return f"{refreshed} refreshed, {failed} failed"
 
-    except PasswordNotFound:  # API key has not yet been set
-        wf.logger.error('No API key saved')
-        raise
+
+def _refresh_in_worker(
+    profile: HostProfile,
+    workers: RefreshWorkers,
+) -> RefreshResult:
+    workflow = workers.workflow_factory()
+    cache = workers.cache_factory(workflow)
+    return refresh_profile(workflow, profile, cache)
+
+
+def _default_workers() -> RefreshWorkers:
+    return default_workers()
+
+
+def _exit_code(result: RefreshResult) -> int:
+    return 0 if isinstance(result, RefreshSuccess) else 1
+
+
+def main(workflow: RefreshWorkflow) -> int:
+    parser = argparse.ArgumentParser()
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--host-id")
+    selection.add_argument("--all", action="store_true", dest="all_profiles")
+    args = parser.parse_args(workflow.args)
+    profiles = tuple(
+        HostProfile.from_record(record) for record in workflow.settings.get("hosts", [])
+    )
+
+    if args.all_profiles:
+        results = refresh_profiles(profiles, _default_workers())
+        print(refresh_summary(results))
+        return 0
+
+    if args.host_id is not None:
+        profile = next(
+            (candidate for candidate in profiles if candidate.id == args.host_id),
+            None,
+        )
+        if profile is None:
+            return 1
+    else:
+        default_id = workflow.settings.get("default_host_id", "")
+        profile = next(
+            (candidate for candidate in profiles if candidate.id == default_id),
+            profiles[0] if profiles else None,
+        )
+        if profile is None:
+            return 0
+
+    return _exit_code(refresh_profile(workflow, profile, CacheState(workflow)))
 
 
 if __name__ == "__main__":
     wf = Workflow()
-    log = wf.logger
-    raise SystemExit(wf.run(main))
+    facade = AlfredWorkflowFacade(wf)
+    raise SystemExit(wf.run(lambda _workflow: main(facade)))
