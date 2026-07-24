@@ -4,26 +4,20 @@ import sys
 from ipaddress import ip_address
 from urllib.parse import urlsplit, urlunsplit
 
-from cache_state import CacheState, projects_key
+from cache_state import CacheState
+from host_commands import add_host, remove_host, render_host_list
 from host_values import InvalidApiUrlError, valid_api_url
 from hosts import (
     ensure_profiles,
     get_default_profile,
     set_default_token,
     set_default_url,
-    token_account,
 )
-from workflow import ICON_INFO, ICON_WARNING, PasswordNotFound, Workflow3
-from workflow.background import is_running, run_in_background
+from project_search import aggregate_projects, search_for_project
+from workflow import ICON_INFO, ICON_WARNING, Workflow3
 
 log = None
 UPDATE_REPO = "HRXWEB/alfred-gitlab"
-
-
-def search_for_project(project):
-    """Generate a string search key for a project"""
-    elements = [project["name_with_namespace"], project["path_with_namespace"]]
-    return " ".join(elements)
 
 
 def project_web_url(project_url, api_url):
@@ -70,6 +64,9 @@ def main(wf):
     # action with the API key
     parser.add_argument("--setkey", dest="apikey", nargs="?", default=None)
     parser.add_argument("--seturl", dest="apiurl", nargs="?", default=None)
+    parser.add_argument("--hostadd")
+    parser.add_argument("--hostlist", action="store_true")
+    parser.add_argument("--hostremove")
     parser.add_argument("--refresh", action="store_true")
     parser.add_argument("query", nargs="?", default=None)
     # parse the script's arguments
@@ -81,9 +78,32 @@ def main(wf):
 
     # decide what to do based on arguments
     if args.refresh:
-        log.info("Refreshing GitLab projects")
-        invalidate_default_projects(wf)
-        subprocess.check_call([sys.executable, wf.workflowfile("update.py")])
+        summary = subprocess.check_output(
+            [
+                sys.executable,
+                wf.workflowfile("update.py"),
+                "--all",
+            ],
+            universal_newlines=True,
+        ).strip()
+        print(summary)
+        return 0
+
+    cache = CacheState(wf)
+    if args.hostadd is not None:
+        _ = ensure_profiles(wf, cache)
+        print(add_host(wf, cache, args.hostadd))
+        return 0
+
+    if args.hostremove is not None:
+        _ = ensure_profiles(wf, cache)
+        print(remove_host(wf, cache, args.hostremove))
+        return 0
+
+    if args.hostlist:
+        profiles = ensure_profiles(wf, cache)
+        render_host_list(wf, profiles, cache)
+        wf.send_feedback()
         return 0
 
     if args.apikey:  # Script was passed an API key
@@ -105,13 +125,8 @@ def main(wf):
     # Check that we have an API key saved
     ####################################################################
 
-    ensure_profiles(wf, CacheState(wf))
-    profile = get_default_profile(wf)
-    try:
-        if profile is None:
-            raise PasswordNotFound()
-        wf.get_password(token_account(profile["id"]))
-    except PasswordNotFound:  # API key has not yet been set
+    profiles = ensure_profiles(wf, cache)
+    if not profiles:
         wf.add_item(
             "No API key set.",
             "Please use glsetkey to set your GitLab API key.",
@@ -127,7 +142,7 @@ def main(wf):
 
     query = args.query
 
-    projects = load_cached_projects(wf)
+    projects = aggregate_projects(wf, profiles, cache)
 
     if wf.update_available:
         # Add a notification to top of Script Filter results
@@ -137,27 +152,6 @@ def main(wf):
             autocomplete="workflow:update",
             icon=ICON_INFO,
         )
-
-    # Notify the user if the cache is being updated
-    if is_running("update") and not projects:
-        wf.rerun = 0.5
-        wf.add_item(
-            "Updating project list via GitLab...",
-            subtitle="This can take some time if you have a large number of projects.",
-            valid=False,
-            icon=ICON_INFO,
-        )
-
-    # Start update script if cached data is too old (or doesn't exist)
-    project_cache_key = (
-        projects_key(profile["id"]) if profile is not None else "projects"
-    )
-    if not wf.cached_data_fresh(project_cache_key, max_age=3600) and not is_running(
-        "update"
-    ):
-        cmd = [sys.executable, wf.workflowfile("update.py")]
-        run_in_background("update", cmd)
-        wf.rerun = 0.5
 
     # If script was passed a query, use it to filter projects
     if query and projects:
@@ -170,20 +164,19 @@ def main(wf):
 
     # Loop through the returned posts and add an item for each to
     # the list of results for Alfred
-    api_url = (
-        profile["api_url"]
-        if profile is not None
-        else "https://gitlab.com/api/v4/projects"
-    )
-
     for project in projects:
         wf.add_item(
             title=project["name_with_namespace"],
-            subtitle=project["path_with_namespace"],
-            arg=project_web_url(project["web_url"], api_url),
+            subtitle=(
+                "{} · {}".format(
+                    project["_host_name"],
+                    project["path_with_namespace"],
+                )
+            ),
+            arg=project_web_url(project["web_url"], project["_api_url"]),
             valid=True,
             icon=None,
-            uid=project["id"],
+            uid=project["_alfred_uid"],
         )
 
     # Send the results to Alfred as XML
