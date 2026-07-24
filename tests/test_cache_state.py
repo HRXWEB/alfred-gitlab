@@ -96,6 +96,60 @@ def test_invalidation_rejects_only_same_profile_generation(
     assert cache.store_projects(PROFILE_B, generation_b, [])
 
 
+def test_refresh_success_atomically_replaces_projects_and_clears_status(
+    tmp_path: Path,
+) -> None:
+    # Given: cached projects and an error status for one profile
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+    assert cache.store_projects(PROFILE_A, "", [{"id": 1}])
+    cache.store_status(
+        PROFILE_A,
+        {"ok": False, "category": "HTTPErrorStatus", "http_status": 401},
+    )
+    generation = cache.current_generation(PROFILE_A)
+
+    # When: a successful refresh publishes against the current generation
+    stored = cache.publish_refresh_success(
+        PROFILE_A,
+        generation,
+        [{"id": 2}],
+    )
+
+    # Then: the project replacement and status clear are both visible
+    assert stored
+    assert cache.load_projects(PROFILE_A) == [{"id": 2}]
+    assert cache.load_status(PROFILE_A) is None
+
+
+def test_stale_refresh_success_preserves_projects_and_newer_error_status(
+    tmp_path: Path,
+) -> None:
+    # Given: a refresh snapshot made before profile invalidation
+    cache = cache_state.CacheState(FakeWorkflow(tmp_path))
+    stale_generation = cache.current_generation(PROFILE_A)
+    cache.invalidate_projects(PROFILE_A)
+    current_generation = cache.current_generation(PROFILE_A)
+    assert cache.store_projects(PROFILE_A, current_generation, [{"id": 2}])
+    newer_status = {
+        "ok": False,
+        "category": "HTTPErrorStatus",
+        "http_status": 503,
+    }
+    cache.store_status(PROFILE_A, newer_status)
+
+    # When: the stale refresh attempts to publish success
+    stored = cache.publish_refresh_success(
+        PROFILE_A,
+        stale_generation,
+        [{"id": 1}],
+    )
+
+    # Then: neither part of the newer profile state is changed
+    assert not stored
+    assert cache.load_projects(PROFILE_A) == [{"id": 2}]
+    assert cache.load_status(PROFILE_A) == newer_status
+
+
 def test_profile_status_caches_do_not_overlap(tmp_path: Path) -> None:
     # Given: distinct failure status for two profiles
     cache = cache_state.CacheState(FakeWorkflow(tmp_path))

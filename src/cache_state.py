@@ -174,6 +174,22 @@ class CacheState:
             )
             return True
 
+    def publish_refresh_success(
+        self,
+        profile_id: str,
+        generation: str,
+        projects: Sequence[Mapping[str, JSONValue]],
+    ) -> bool:
+        with self._exclusive_lock(profile_id):
+            if self.current_generation(profile_id) != generation:
+                return False
+            self.workflow.cache_data(
+                projects_key(profile_id),
+                [dict(project) for project in projects],
+            )
+            self.workflow.cache_data(status_key(profile_id), None)
+            return True
+
     def load_status(self, profile_id: str) -> StatusRecord | None:
         key = status_key(profile_id)
         try:
