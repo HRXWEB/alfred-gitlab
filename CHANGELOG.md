@@ -5,6 +5,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v3.1.0] (2026-07-24)
+* Rewrite project links to use the configured GitLab domain
+* Refresh projects immediately with `glrefresh`
+* Invalidate the project cache when the API key or URL changes
+
 ## [v3.0.1] (2022-07-18)
 * Remove URLEncoding of repo URLs are they appear to break opening in Alfred 5 ([#9ce14af](https://github.com/lukewaite/alfred-gitlab/commit/9ce14af))
 
@@ -65,7 +70,8 @@ upgraded to the fork in the meantime has the ability to pull updates in the futu
 
 * Initial implementaiton of alfred-gitlab workflow
 
-[Unreleased]: https://github.com/lukewaite/alfred-gitlab/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.1.0...HEAD
+[v3.1.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.0.1...v3.1.0
 [v3.0.0]: https://github.com/lukewaite/alfred-gitlab/compare/v3.0.0...v3.0.1
 [v3.0.0]: https://github.com/lukewaite/alfred-gitlab/compare/v1.6.0...v3.0.0
 [v1.6.0]: https://github.com/lukewaite/alfred-gitlab/compare/v1.5.0...v1.6.0

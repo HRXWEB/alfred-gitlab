@@ -9,6 +9,7 @@ Quickly navigate to GitLab projects in [Alfred 3][alfred].
 * (Optionally) Tell it where the GitLab API you want to connect to is by running `glseturl https://<host>/api/v4/projects`
   * Defaults to GitLab.com's public API
 * search for projects with `gl <search>`
+* refresh projects immediately with `glrefresh`
 
 ### Sub-Page Navigation
 ![][sub-page]
@@ -24,6 +25,20 @@ By default, we will only show projects which you are a member of.
 * Optionally, allow you to search for non-membership repos
 * Add alfred-workflow updater notifications
 * Clean up 
+
+## Building
+
+Build the installable workflow at `GitLab.alfredworkflow`:
+
+```bash
+./scripts/build.sh
+```
+
+Pass a path to write the archive elsewhere:
+
+```bash
+./scripts/build.sh /tmp/GitLab.alfredworkflow
+```
 
 # Thanks, License, Copyright
 
