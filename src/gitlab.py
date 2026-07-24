@@ -22,6 +22,8 @@ CACHE_ERRORS = (
     ImportError,
     IndexError,
     OverflowError,
+    UnicodeDecodeError,
+    ValueError,
 )
 
 
@@ -82,11 +84,16 @@ def project_web_url(project_url, api_url):
 
 def load_cached_projects(wf):
     try:
-        return wf.cached_data('projects', None, max_age=0)
+        projects = wf.cached_data('projects', None, max_age=0)
     except CACHE_ERRORS:
         log.warning("Discarding corrupt GitLab project cache")
         invalidate_projects(wf)
         return None
+    if projects is not None and not isinstance(projects, list):
+        log.warning("Discarding invalid GitLab project cache")
+        invalidate_projects(wf)
+        return None
+    return projects
 
 
 def main(wf):

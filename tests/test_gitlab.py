@@ -160,11 +160,31 @@ def test_corrupt_projects_cache_is_invalidated():
     assert workflow.cache_writes == [("projects", None)]
 
 
-def test_stale_pickle_dependency_is_invalidated():
+@pytest.mark.parametrize(
+    "error",
+    [
+        ModuleNotFoundError("removed module"),
+        ValueError("unsupported pickle protocol"),
+        UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid"),
+    ],
+)
+def test_stale_pickle_dependency_is_invalidated(error):
     workflow = FakeWorkflow([])
     workflow.cached_data = lambda *args, **kwargs: (_ for _ in ()).throw(
-        ModuleNotFoundError("removed module")
+        error
     )
+    gitlab.log = FakeLogger()
+
+    result = gitlab.load_cached_projects(workflow)
+
+    assert result is None
+    assert workflow.cache_writes == [("projects", None)]
+
+
+@pytest.mark.parametrize("cached_value", [{"id": 1}, "projects", 7])
+def test_invalid_projects_cache_type_is_invalidated(cached_value):
+    workflow = FakeWorkflow([])
+    workflow.cached_data = lambda *args, **kwargs: cached_value
     gitlab.log = FakeLogger()
 
     result = gitlab.load_cached_projects(workflow)
