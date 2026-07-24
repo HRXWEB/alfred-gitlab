@@ -1,4 +1,5 @@
 import ast
+import re
 from pathlib import Path
 
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
@@ -29,3 +30,10 @@ def test_v4_dataclasses_do_not_require_python_3_10_slots() -> None:
     for module_name in V4_MODULES:
         source = (SRC_DIR / module_name).read_text(encoding="utf-8")
         assert "slots=True" not in source
+
+
+def test_v4_runtime_annotations_do_not_use_pep604_inside_cast() -> None:
+    pattern = re.compile(r"cast\([^\n)]*\|")
+    for module_name in V4_MODULES:
+        source = (SRC_DIR / module_name).read_text(encoding="utf-8")
+        assert pattern.search(source) is None

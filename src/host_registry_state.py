@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Protocol, TypedDict, cast, overload
+from typing import (  # noqa: UP035
+    Dict,
+    List,
+    Literal,
+    Protocol,
+    TypedDict,
+    Union,
+    cast,
+    overload,
+)
 
 from host_values import ProfileRecord
 from workflow import KeychainError, PasswordNotFound
 from workflow.util import AcquisitionError
 
 ROLLBACK_ERRORS = (OSError, AcquisitionError, KeychainError, PasswordNotFound)
+RegistrySettingValue = Union[List[ProfileRecord], str, int]  # noqa: UP006, UP007
 
 
 class SettingsUpdate(TypedDict):
@@ -134,7 +144,7 @@ def _restore_in_memory_setting(
     settings = workflow.settings
     if not isinstance(settings, dict):
         return
-    in_memory_settings = cast(dict[str, list[ProfileRecord] | str | int], settings)
+    in_memory_settings = cast(Dict[str, RegistrySettingValue], settings)  # noqa: UP006
     _ = in_memory_settings.pop(key, None)
     if existed:
         _ = in_memory_settings.setdefault(key, value)
