@@ -2,42 +2,50 @@ from __future__ import annotations
 
 import fcntl
 import os
-import pickle
-import re
 import uuid
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Final, Protocol, TypedDict
+from typing import Protocol
 
-PROFILE_ID: Final = re.compile(r"^[0-9a-f]{32}$")
-CACHE_ERRORS: Final = (
-    pickle.UnpicklingError,
-    EOFError,
-    AttributeError,
-    ImportError,
-    IndexError,
-    OverflowError,
-    UnicodeDecodeError,
-    ValueError,
+from cache_records import (
+    CACHE_ERRORS,
+    PROFILE_ID,
+    CachePayload,
+    CacheValue,
+    InvalidProfileIdError,
+    InvalidStatusError,
+    JSONScalar,
+    JSONValue,
+    Project,
+    Projects,
+    StatusRecord,
+    projects_key,
+    sanitized_status,
+    status_key,
+    status_payload,
+    validate_profile_id,
 )
 
-JSONScalar = str | int | float | bool | None
-JSONValue = JSONScalar | list["JSONValue"] | dict[str, "JSONValue"]
-Project = dict[str, JSONValue]
-Projects = list[Project]
-CacheValue = JSONValue
-
-
-class StatusRecord(TypedDict, total=False):
-    ok: bool
-    category: str
-    http_status: int | None
-    message: str
-    updated_at: int
-
-
-CachePayload = CacheValue
+CACHE_WRITE_FAILURES = (Exception,)
+__all__ = [
+    "CACHE_ERRORS",
+    "PROFILE_ID",
+    "CachePayload",
+    "CacheState",
+    "CacheValue",
+    "CacheWorkflow",
+    "InvalidProfileIdError",
+    "InvalidStatusError",
+    "JSONScalar",
+    "JSONValue",
+    "Project",
+    "Projects",
+    "StatusRecord",
+    "projects_key",
+    "status_key",
+    "validate_profile_id",
+]
 
 
 class CacheWorkflow(Protocol):
@@ -56,36 +64,6 @@ class CacheWorkflow(Protocol):
         *,
         max_age: int = 60,
     ) -> CachePayload | None: ...
-
-
-@dataclass(frozen=True, slots=True)
-class InvalidProfileIdError(ValueError):
-    profile_id: str
-
-    def __str__(self) -> str:
-        return "Invalid GitLab host profile ID"
-
-
-@dataclass(frozen=True, slots=True)
-class InvalidStatusError(ValueError):
-    field: str
-
-    def __str__(self) -> str:
-        return f"Invalid GitLab cache status field: {self.field}"
-
-
-def validate_profile_id(profile_id: str) -> str:
-    if PROFILE_ID.fullmatch(profile_id) is None:
-        raise InvalidProfileIdError(profile_id)
-    return profile_id
-
-
-def projects_key(profile_id: str) -> str:
-    return f"projects-{validate_profile_id(profile_id)}"
-
-
-def status_key(profile_id: str) -> str:
-    return f"status-{validate_profile_id(profile_id)}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,30 +112,41 @@ class CacheState:
             return ""
 
     def load_projects(self, profile_id: str) -> Projects | None:
+        with self._exclusive_lock(profile_id):
+            return self._load_projects_locked(profile_id)
+
+    def _load_projects_locked(self, profile_id: str) -> Projects | None:
         key = projects_key(profile_id)
         try:
             cached = self.workflow.cached_data(key, None, max_age=0)
         except CACHE_ERRORS:
-            self.invalidate_projects(profile_id)
+            self._invalidate_projects_locked(profile_id)
             return None
         if cached is None:
             return None
         if not isinstance(cached, list):
-            self.invalidate_projects(profile_id)
+            self._invalidate_projects_locked(profile_id)
             return None
 
         projects: Projects = []
         for project in cached:
             if not isinstance(project, dict):
-                self.invalidate_projects(profile_id)
+                self._invalidate_projects_locked(profile_id)
                 return None
             projects.append(project)
         return projects
 
     def invalidate_projects(self, profile_id: str) -> None:
         with self._exclusive_lock(profile_id):
-            self._rotate_generation(profile_id)
-            self.workflow.cache_data(projects_key(profile_id), None)
+            self._invalidate_projects_locked(profile_id)
+
+    def _invalidate_projects_locked(self, profile_id: str) -> None:
+        _ = self._rotate_generation(profile_id)
+        self.workflow.cache_data(projects_key(profile_id), None)
+
+    def begin_refresh(self, profile_id: str) -> str:
+        with self._exclusive_lock(profile_id):
+            return self._rotate_generation(profile_id)
 
     def store_projects(
         self,
@@ -183,14 +172,35 @@ class CacheState:
         with self._exclusive_lock(profile_id):
             if self.current_generation(profile_id) != generation:
                 return False
-            self.workflow.cache_data(
-                projects_key(profile_id),
-                [dict(project) for project in projects],
+            project_key = projects_key(profile_id)
+            profile_status_key = status_key(profile_id)
+            old_projects = self.workflow.cached_data(
+                project_key,
+                None,
+                max_age=0,
             )
-            self.workflow.cache_data(status_key(profile_id), None)
+            old_status = self.workflow.cached_data(
+                profile_status_key,
+                None,
+                max_age=0,
+            )
+            try:
+                self.workflow.cache_data(
+                    project_key,
+                    [dict(project) for project in projects],
+                )
+                self.workflow.cache_data(profile_status_key, None)
+            except CACHE_WRITE_FAILURES:
+                self.workflow.cache_data(project_key, old_projects)
+                self.workflow.cache_data(profile_status_key, old_status)
+                raise
             return True
 
     def load_status(self, profile_id: str) -> StatusRecord | None:
+        with self._exclusive_lock(profile_id):
+            return self._load_status_locked(profile_id)
+
+    def _load_status_locked(self, profile_id: str) -> StatusRecord | None:
         key = status_key(profile_id)
         try:
             cached = self.workflow.cached_data(key, None, max_age=0)
@@ -203,7 +213,7 @@ class CacheState:
             self.workflow.cache_data(key, None)
             return None
         try:
-            return _sanitized_status(cached)
+            return sanitized_status(cached)
         except InvalidStatusError:
             self.workflow.cache_data(key, None)
             return None
@@ -213,35 +223,37 @@ class CacheState:
         profile_id: str,
         status: Mapping[str, JSONValue],
     ) -> None:
-        sanitized = _sanitized_status(status)
-        cached: dict[str, JSONValue] = {}
-        if "ok" in sanitized:
-            cached["ok"] = sanitized["ok"]
-        if "category" in sanitized:
-            cached["category"] = sanitized["category"]
-        if "http_status" in sanitized:
-            cached["http_status"] = sanitized["http_status"]
-        if "message" in sanitized:
-            cached["message"] = sanitized["message"]
-        if "updated_at" in sanitized:
-            cached["updated_at"] = sanitized["updated_at"]
-        self.workflow.cache_data(
-            status_key(profile_id),
-            cached,
-        )
+        cached = status_payload(status)
+        with self._exclusive_lock(profile_id):
+            self.workflow.cache_data(status_key(profile_id), cached)
+
+    def publish_refresh_failure(
+        self,
+        profile_id: str,
+        generation: str,
+        status: Mapping[str, JSONValue],
+    ) -> bool:
+        cached = status_payload(status)
+        with self._exclusive_lock(profile_id):
+            if self.current_generation(profile_id) != generation:
+                return False
+            self.workflow.cache_data(status_key(profile_id), cached)
+            return True
 
     def clear_profile_state(self, profile_id: str) -> None:
         with self._exclusive_lock(profile_id):
-            self._rotate_generation(profile_id)
+            _ = self._rotate_generation(profile_id)
             self.workflow.cache_data(projects_key(profile_id), None)
             self.workflow.cache_data(status_key(profile_id), None)
 
-    def _rotate_generation(self, profile_id: str) -> None:
+    def _rotate_generation(self, profile_id: str) -> str:
         generation_path = self.generation_path(profile_id)
         temporary_path = f"{generation_path}.{uuid.uuid4().hex}"
+        generation = uuid.uuid4().hex
         with open(temporary_path, "w", encoding="utf-8") as generation_file:
-            _ = generation_file.write(uuid.uuid4().hex)
+            _ = generation_file.write(generation)
         os.replace(temporary_path, generation_path)
+        return generation
 
     @contextmanager
     def _exclusive_lock(self, profile_id: str) -> Generator[None, None, None]:
@@ -250,37 +262,3 @@ class CacheState:
         with open(lock_path, "a", encoding="utf-8") as lock_file:
             _ = fcntl.flock(lock_file, fcntl.LOCK_EX)
             yield
-
-
-def _sanitized_status(
-    status: Mapping[str, JSONValue],
-) -> StatusRecord:
-    sanitized: StatusRecord = {}
-    if "ok" in status:
-        ok = status["ok"]
-        if not isinstance(ok, bool):
-            raise InvalidStatusError("ok")
-        sanitized["ok"] = ok
-    if "category" in status:
-        category = status["category"]
-        if not isinstance(category, str):
-            raise InvalidStatusError("category")
-        sanitized["category"] = category
-    if "http_status" in status:
-        http_status = status["http_status"]
-        if http_status is not None and (
-            not isinstance(http_status, int) or isinstance(http_status, bool)
-        ):
-            raise InvalidStatusError("http_status")
-        sanitized["http_status"] = http_status
-    if "message" in status:
-        message = status["message"]
-        if not isinstance(message, str):
-            raise InvalidStatusError("message")
-        sanitized["message"] = message
-    if "updated_at" in status:
-        updated_at = status["updated_at"]
-        if not isinstance(updated_at, int) or isinstance(updated_at, bool):
-            raise InvalidStatusError("updated_at")
-        sanitized["updated_at"] = updated_at
-    return sanitized

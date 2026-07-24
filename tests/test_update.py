@@ -87,7 +87,7 @@ def test_generation_is_captured_before_credentials(monkeypatch):
     update.log = FakeLogger()
     monkeypatch.setattr(
         update.CacheState,
-        "current_generation",
+        "begin_refresh",
         lambda self, profile_id: events.append("generation") or "generation-1",
     )
     monkeypatch.setattr(
@@ -167,7 +167,7 @@ def test_refresh_profile_captures_generation_before_scoped_token(
     events = []
     monkeypatch.setattr(
         update.CacheState,
-        "current_generation",
+        "begin_refresh",
         lambda self, profile_id: events.append(("generation", profile_id)) or "",
     )
     monkeypatch.setattr(
@@ -197,7 +197,7 @@ def test_refresh_profile_failure_keeps_old_cache_and_sanitizes_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Given: a failed remote call whose exception text contains secrets
-    class FakeHttpError(Exception):
+    class FakeHttpError(update.mureq.HTTPException):
         status_code = 401
 
     workflow = FakeWorkflow(tmp_path)

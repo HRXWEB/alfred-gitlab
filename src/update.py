@@ -1,51 +1,26 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
-from typing import Literal, Protocol, assert_never, overload
+from dataclasses import dataclass
+from typing import Literal, assert_never
 
 import mureq
-from cache_state import (
-    CachePayload,
-    CacheState,
-    CacheValue,
-    CacheWorkflow,
-    Projects,
-)
-from host_values import HostProfile, ProfileRecord
+from cache_records import Projects
+from cache_state import CacheState
+from host_values import HostProfile
 from hosts import token_account
+from refresh_runtime import (
+    AlfredWorkflowFacade,
+    RefreshWorkers,
+    RefreshWorkflow,
+    default_workers,
+)
 from workflow import PasswordNotFound, Workflow
 
 MAX_REFRESH_WORKERS = 4
-PROFILE_FETCH_FAILURES = (Exception,)
-
-
-class RefreshSettings(Protocol):
-    @overload
-    def get(
-        self,
-        key: Literal["hosts"],
-        default: list[ProfileRecord],
-    ) -> list[ProfileRecord]: ...
-
-    @overload
-    def get(
-        self,
-        key: Literal["default_host_id"],
-        default: str,
-    ) -> str: ...
-
-
-class RefreshWorkflow(CacheWorkflow, Protocol):
-    @property
-    def settings(self) -> RefreshSettings: ...
-
-    @property
-    def args(self) -> Sequence[str]: ...
-
-    def get_password(self, account: str) -> str: ...
+PROFILE_FETCH_FAILURES = (PasswordNotFound, mureq.HTTPException)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,87 +39,6 @@ class RefreshFailure:
 
 
 RefreshResult = RefreshSuccess | RefreshFailure
-WorkflowFactory = Callable[[], RefreshWorkflow]
-CacheFactory = Callable[[RefreshWorkflow], CacheState]
-
-
-@dataclass(frozen=True, slots=True)
-class RefreshWorkers:
-    workflow_factory: WorkflowFactory
-    cache_factory: CacheFactory
-
-
-@dataclass(frozen=True, slots=True)
-class AlfredSettingsFacade:
-    workflow: Workflow
-
-    @overload
-    def get(
-        self,
-        key: Literal["hosts"],
-        default: list[ProfileRecord],
-    ) -> list[ProfileRecord]: ...
-
-    @overload
-    def get(
-        self,
-        key: Literal["default_host_id"],
-        default: str,
-    ) -> str: ...
-
-    def get(
-        self,
-        key: Literal["hosts", "default_host_id"],
-        default: list[ProfileRecord] | str,
-    ) -> list[ProfileRecord] | str:
-        return self.workflow.settings.get(key, default)
-
-
-@dataclass(frozen=True, slots=True)
-class AlfredWorkflowFacade:
-    workflow: Workflow
-    settings: RefreshSettings = field(init=False)
-    args: Sequence[str] = field(init=False)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "settings",
-            AlfredSettingsFacade(self.workflow),
-        )
-        object.__setattr__(
-            self,
-            "args",
-            tuple(
-                argument for argument in self.workflow.args if isinstance(argument, str)
-            ),
-        )
-
-    def get_password(self, account: str) -> str:
-        password = self.workflow.get_password(account)
-        if not isinstance(password, str):
-            raise PasswordNotFound
-        return password
-
-    def datafile(self, name: str) -> str:
-        path = self.workflow.datafile(name)
-        return path if isinstance(path, str) else str(path)
-
-    def cache_data(
-        self,
-        name: str,
-        value: CacheValue | None,
-    ) -> None:
-        self.workflow.cache_data(name, value)
-
-    def cached_data(
-        self,
-        name: str,
-        data_func: None = None,
-        *,
-        max_age: int = 60,
-    ) -> CachePayload | None:
-        return self.workflow.cached_data(name, data_func, max_age=max_age)
 
 
 def get_projects(api_key: str, url: str) -> Projects:
@@ -167,7 +61,7 @@ def refresh_profile(
     profile: HostProfile,
     cache: CacheState,
 ) -> RefreshResult:
-    generation = cache.current_generation(profile.id)
+    generation = cache.begin_refresh(profile.id)
     try:
         api_key = workflow.get_password(token_account(profile.id))
         projects = get_projects(api_key, profile.api_url)
@@ -181,8 +75,9 @@ def refresh_profile(
             category=type(error).__name__,
             http_status=http_status,
         )
-        cache.store_status(
+        _ = cache.publish_refresh_failure(
             profile.id,
+            generation,
             {
                 "ok": failure.ok,
                 "category": failure.category,
@@ -244,10 +139,7 @@ def _refresh_in_worker(
 
 
 def _default_workers() -> RefreshWorkers:
-    return RefreshWorkers(
-        workflow_factory=lambda: AlfredWorkflowFacade(Workflow()),
-        cache_factory=CacheState,
-    )
+    return default_workers()
 
 
 def _exit_code(result: RefreshResult) -> int:
