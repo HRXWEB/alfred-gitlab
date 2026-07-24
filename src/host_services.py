@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from cache_state import Projects
+from host_migration_rollback import MigrationRollback, snapshot_registry_settings
 from host_registry import (
     DEFAULT_API_URL,
     HOST_SCHEMA_VERSION,
@@ -18,6 +19,7 @@ from host_registry import (
 from host_values import (
     HostProfile,
     InvalidApiUrlError,
+    NameSource,
     ProfileDraft,
     ProfileId,
     ProfileRecord,
@@ -45,16 +47,6 @@ class HostCache(Protocol):
 @dataclass(frozen=True, slots=True)
 class CacheMigrationConflictError(OSError):
     profile_id: str
-
-
-@dataclass(frozen=True, slots=True)
-class RegistrySettingsSnapshot:
-    had_hosts: bool
-    hosts: list[ProfileRecord]
-    had_default: bool
-    default_host_id: str
-    had_schema: bool
-    schema_version: int
 
 
 def ensure_profiles(
@@ -101,26 +93,35 @@ def migrate_legacy_profile(
         id=ProfileId(new_profile_id()),
         name=derive_host_name(api_url),
         api_url=api_url,
+        name_source=NameSource.AUTO,
     )
-    settings_snapshot = _snapshot_registry_settings(workflow)
     account = token_account(profile.id)
+    settings_snapshot = snapshot_registry_settings(
+        workflow,
+        get_profiles(workflow),
+    )
     token_attempted = False
-    cache_written = False
+    cache_attempted = False
     try:
         if legacy_token is not None:
             token_attempted = True
             workflow.save_password(account, legacy_token)
         if legacy_projects is not None:
+            cache_attempted = True
             if cache.migrate_legacy_projects(profile.id, legacy_projects) is False:
                 raise CacheMigrationConflictError(profile.id)
-            cache_written = True
         _save_profiles(workflow, (profile,), profile.id)
     except (OSError, AcquisitionError):
-        _restore_registry_settings(workflow, settings_snapshot)
-        if cache_written:
-            cache.clear_profile_state(profile.id)
-        if token_attempted:
-            _delete_new_token(workflow, account)
+        rollback = MigrationRollback(
+            workflow=workflow,
+            cache=cache,
+            profile_id=profile.id,
+            account=account,
+            snapshot=settings_snapshot,
+            token_attempted=token_attempted,
+            cache_attempted=cache_attempted,
+        )
+        _rollback_failures = rollback.run()
         raise
     return profile.to_record()
 
@@ -167,6 +168,7 @@ def set_default_url(
             id=ProfileId(new_profile_id()),
             name=derive_host_name(api_url),
             api_url=api_url,
+            name_source=NameSource.AUTO,
         )
         _save_profiles(workflow, (profile,), profile.id)
     else:
@@ -191,66 +193,11 @@ def _updated_default_profile(
     api_url: str,
 ) -> HostProfile:
     name = selected["name"]
-    if name == derive_host_name(selected["api_url"]):
+    if selected["name_source"] is NameSource.AUTO:
         name = derive_host_name(api_url)
     return HostProfile(
         id=ProfileId(selected["id"]),
         name=name,
         api_url=api_url,
+        name_source=selected["name_source"],
     )
-
-
-def _snapshot_registry_settings(
-    workflow: WorkflowLike,
-) -> RegistrySettingsSnapshot:
-    return RegistrySettingsSnapshot(
-        had_hosts="hosts" in workflow.settings,
-        hosts=get_profiles(workflow),
-        had_default="default_host_id" in workflow.settings,
-        default_host_id=workflow.settings.get("default_host_id", ""),
-        had_schema="host_schema_version" in workflow.settings,
-        schema_version=workflow.settings.get("host_schema_version", 0),
-    )
-
-
-def _restore_registry_settings(
-    workflow: WorkflowLike,
-    snapshot: RegistrySettingsSnapshot,
-) -> None:
-    _restore_setting(
-        workflow,
-        "hosts",
-        snapshot.had_hosts,
-        snapshot.hosts,
-    )
-    _restore_setting(
-        workflow,
-        "default_host_id",
-        snapshot.had_default,
-        snapshot.default_host_id,
-    )
-    _restore_setting(
-        workflow,
-        "host_schema_version",
-        snapshot.had_schema,
-        snapshot.schema_version,
-    )
-
-
-def _restore_setting(
-    workflow: WorkflowLike,
-    key: str,
-    existed: bool,
-    value: list[ProfileRecord] | str | int,
-) -> None:
-    if existed:
-        workflow.settings[key] = value
-    elif key in workflow.settings:
-        del workflow.settings[key]
-
-
-def _delete_new_token(workflow: WorkflowLike, account: str) -> None:
-    try:
-        workflow.delete_password(account)
-    except PasswordNotFound:
-        return

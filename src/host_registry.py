@@ -9,6 +9,7 @@ from host_values import (
     HostProfile,
     InvalidApiUrlError,
     InvalidHostNameError,
+    NameSource,
     ProfileDraft,
     ProfileId,
     ProfileRecord,
@@ -20,6 +21,8 @@ from workflow.util import AcquisitionError
 
 HOST_SCHEMA_VERSION: Final = 1
 DEFAULT_API_URL: Final = "https://gitlab.com/api/v4/projects"
+
+
 class SettingsUpdate(TypedDict):
     hosts: list[ProfileRecord]
     default_host_id: str
@@ -130,6 +133,11 @@ class HostRegistry:
             id=profile_id,
             name=name,
             api_url=draft.api_url,
+            name_source=(
+                NameSource.AUTO
+                if draft.name is None
+                else NameSource.CUSTOM
+            ),
         )
         updated = tuple(
             replacement if profile.id == profile_id else profile
@@ -173,23 +181,27 @@ class HostRegistry:
             profile for profile in profiles if profile.id != removed.id
         )
         account = token_account(removed.id)
-        token = self.workflow.get_password(account)
+        try:
+            token = self.workflow.get_password(account)
+        except PasswordNotFound:
+            token = None
         self.callbacks.cleanup(self.workflow, removed.id)
         _save_profiles(
             self.workflow,
             remaining,
             _selected_default_id(self.workflow, remaining),
         )
-        try:
-            self.workflow.delete_password(account)
-        except (OSError, AcquisitionError):
-            self.workflow.save_password(account, token)
-            _save_profiles(
-                self.workflow,
-                profiles,
-                _selected_default_id(self.workflow, profiles),
-            )
-            raise
+        if token is not None:
+            try:
+                self.workflow.delete_password(account)
+            except (OSError, AcquisitionError):
+                self.workflow.save_password(account, token)
+                _save_profiles(
+                    self.workflow,
+                    profiles,
+                    _selected_default_id(self.workflow, profiles),
+                )
+                raise
         return removed
 
 
@@ -208,6 +220,7 @@ def get_profiles(workflow: WorkflowLike) -> list[ProfileRecord]:
             id=profile["id"],
             name=profile["name"],
             api_url=profile["api_url"],
+            name_source=profile["name_source"],
         )
         for profile in profiles
     ]

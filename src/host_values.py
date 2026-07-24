@@ -1,6 +1,7 @@
 import re
 import shlex
 from dataclasses import dataclass
+from enum import Enum
 from ipaddress import ip_address
 from typing import Final, NewType, TypedDict
 from urllib.parse import SplitResult, urlsplit
@@ -12,10 +13,16 @@ DOMAIN_LABEL: Final = re.compile(
 ProfileId = NewType("ProfileId", str)
 
 
+class NameSource(str, Enum):
+    AUTO = "auto"
+    CUSTOM = "custom"
+
+
 class ProfileRecord(TypedDict):
     id: str
     name: str
     api_url: str
+    name_source: NameSource
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +57,7 @@ class HostProfile:
     id: ProfileId
     name: str
     api_url: str
+    name_source: NameSource
 
     @classmethod
     def from_record(cls, record: ProfileRecord) -> "HostProfile":
@@ -57,6 +65,7 @@ class HostProfile:
             id=ProfileId(record["id"]),
             name=record["name"],
             api_url=record["api_url"],
+            name_source=NameSource(record["name_source"]),
         )
 
     def to_record(self) -> ProfileRecord:
@@ -64,6 +73,7 @@ class HostProfile:
             "id": self.id,
             "name": self.name,
             "api_url": self.api_url,
+            "name_source": self.name_source,
         }
 
 

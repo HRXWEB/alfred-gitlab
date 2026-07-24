@@ -17,12 +17,19 @@ from host_services import (
     set_default_token,
     set_default_url,
 )
-from host_values import HostProfile, ProfileDraft, ProfileId, ProfileRecord
+from host_values import (
+    HostProfile,
+    NameSource,
+    ProfileDraft,
+    ProfileId,
+    ProfileRecord,
+)
 
 __all__ = [
     "HOST_SCHEMA_VERSION",
     "HostProfile",
     "HostRegistry",
+    "NameSource",
     "ProfileDraft",
     "ProfileId",
     "ProfileRecord",

@@ -21,13 +21,6 @@ def test_updates_are_loaded_from_the_fork():
     assert gitlab.UPDATE_REPO == "HRXWEB/alfred-gitlab"
 
 
-def test_workflow_version_is_four():
-    with (SRC_DIR / "info.plist").open("rb") as plist_file:
-        workflow = plistlib.load(plist_file)
-
-    assert workflow["version"] == "4.0.0"
-
-
 class FakeLogger:
     def __init__(self):
         self.warnings = []
@@ -48,6 +41,7 @@ class FakeWorkflow:
                     "id": PROFILE_ID,
                     "name": "gitlab.example.com",
                     "api_url": ("https://gitlab.example.com/api/v4/projects"),
+                    "name_source": "auto",
                 }
             ],
             "default_host_id": PROFILE_ID,

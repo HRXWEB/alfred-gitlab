@@ -40,6 +40,7 @@ class FakeWorkflow:
                     "id": PROFILE_ID,
                     "name": "gitlab.example.com",
                     "api_url": ("https://gitlab.example.com/api/v4/projects"),
+                    "name_source": "auto",
                 }
             ],
             "default_host_id": PROFILE_ID,

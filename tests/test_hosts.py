@@ -44,6 +44,13 @@ class PartiallyFailingSettings(dict):
         raise OSError("settings unavailable")
 
 
+class RestorationFailingSettings(PartiallyFailingSettings):
+    def __delitem__(self, key):
+        if key == "hosts":
+            raise OSError("settings restoration unavailable")
+        super().__delitem__(key)
+
+
 class FakeCache:
     def __init__(self):
         self.legacy_projects = None
@@ -107,6 +114,7 @@ def test_legacy_migration_when_legacy_state_exists_is_idempotent(
     assert len(first) == 1
     assert second == first
     assert first[0]["name"] == expected_name
+    assert first[0]["name_source"] == "auto"
     assert cache.projects(first[0]["id"]) == [{"id": 7}]
     assert workflow.settings.get("api_url") == legacy_url
     assert cache.legacy_projects == [{"id": 7}]
@@ -200,6 +208,51 @@ def test_legacy_migration_when_cache_fails_rolls_back_scoped_credential():
     assert set(workflow.passwords) == {"gitlab_api_key"}
 
 
+def test_legacy_migration_when_cache_mutates_then_fails_clears_scoped_state():
+    # Given: a cache migration that writes scoped state before reporting failure
+    workflow = FakeWorkflow()
+    workflow.passwords["gitlab_api_key"] = "example-token"
+    cache = FakeCache()
+    cache.legacy_projects = [{"id": 7}]
+
+    def migrate_then_fail(profile_id, projects):
+        cache.project_values[profile_id] = projects
+        raise OSError("cache unavailable")
+
+    cache.migrate_legacy_projects = migrate_then_fail
+
+    # When: legacy migration receives the cache failure
+    with pytest.raises(OSError, match="cache unavailable"):
+        hosts.ensure_profiles(workflow, cache)
+
+    # Then: only new scoped state is removed
+    assert cache.project_values == {}
+    assert len(cache.cleared) == 1
+    assert set(workflow.passwords) == {"gitlab_api_key"}
+    assert cache.legacy_projects == [{"id": 7}]
+
+
+def test_legacy_migration_when_restore_fails_still_cleans_scoped_state():
+    # Given: registry commit and restoration both fail after mutating settings
+    workflow = FakeWorkflow()
+    workflow.settings = RestorationFailingSettings(
+        {"api_url": "https://gitlab.example.com/api/v4/projects"}
+    )
+    workflow.passwords["gitlab_api_key"] = "example-token"
+    cache = FakeCache()
+    cache.legacy_projects = [{"id": 7}]
+
+    # When: migration reports the original registry commit failure
+    with pytest.raises(OSError, match="settings unavailable"):
+        hosts.ensure_profiles(workflow, cache)
+
+    # Then: the in-memory registry and all new scoped state are removed
+    assert set(workflow.settings) == {"api_url"}
+    assert set(workflow.passwords) == {"gitlab_api_key"}
+    assert cache.project_values == {}
+    assert len(cache.cleared) == 1
+
+
 def test_set_default_token_when_no_profile_creates_gitlab_com_default():
     # Given: a workflow with no legacy or v4 profile state
     workflow = FakeWorkflow()
@@ -267,6 +320,33 @@ def test_set_default_url_when_name_was_derived_updates_name():
     # Then: the auto-derived name follows the new URL
     assert updated["id"] == profile["id"]
     assert updated["name"] == "new.example.com"
+    assert updated["name_source"] == "auto"
+
+
+def test_set_default_url_when_explicit_name_equals_hostname_preserves_name():
+    # Given: an explicit alias whose text happens to equal the current hostname
+    workflow = FakeWorkflow()
+    cache = FakeCache()
+    profile = hosts.add_or_update_profile(
+        hosts.HostRegistry(workflow),
+        host_values.ProfileDraft(
+            name="old.example.com",
+            api_url="https://old.example.com/api/v4/projects",
+            token="example-token",
+        ),
+    )
+
+    # When: the compatibility URL command changes its API URL
+    updated = hosts.set_default_url(
+        workflow,
+        "https://new.example.com/api/v4/projects",
+        cache,
+    )
+
+    # Then: explicit provenance keeps the alias unchanged
+    assert updated["id"] == profile["id"]
+    assert updated["name"] == "old.example.com"
+    assert updated["name_source"] == "custom"
 
 
 def test_remove_profile_when_cache_cleanup_fails_retains_credential():
@@ -354,6 +434,29 @@ def test_remove_profile_when_keychain_delete_fails_restores_registry():
     )
 
 
+def test_remove_profile_when_scoped_credential_is_absent_removes_profile():
+    # Given: an exact stored profile whose scoped credential is already absent
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    profile = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="company",
+            api_url="https://gitlab.example.com/api/v4/projects",
+            token="example-token",
+        ),
+    )
+    del workflow.passwords[hosts.token_account(profile["id"])]
+
+    # When: the exact profile is removed
+    removed = hosts.remove_profile(registry, "company")
+
+    # Then: removal succeeds without attempting a credential delete
+    assert removed == profile
+    assert hosts.get_profiles(workflow) == []
+    assert workflow.deleted_passwords == []
+
+
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
@@ -424,6 +527,7 @@ def test_add_profile_when_alias_is_omitted_uses_derived_name_and_keychain():
 
     # Then: its derived profile and scoped token are persisted
     assert profile["name"] == "192.0.2.10:8081"
+    assert profile["name_source"] == "auto"
     assert profile["id"]
     assert "token" not in profile
     assert workflow.saved_passwords == [
@@ -539,11 +643,13 @@ def test_get_default_profile_when_default_is_missing_uses_first_profile():
                 "id": "first-id",
                 "name": "first",
                 "api_url": "https://first.example.com/api/v4/projects",
+                "name_source": "custom",
             },
             {
                 "id": "second-id",
                 "name": "second",
                 "api_url": "https://second.example.com/api/v4/projects",
+                "name_source": "custom",
             },
         ],
         "default_host_id": "missing-id",
