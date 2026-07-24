@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Use GitLab 16-compatible project subpage paths
 * Build reproducible workflow archives from tracked source files
 
+### Upgrade notes
+Upstream v3.0.1 installations cannot discover releases from this fork.
+Download and install `GitLab.alfredworkflow` from the
+[HRXWEB releases page](https://github.com/HRXWEB/alfred-gitlab/releases) once.
+Future updates after v3.1.0 use `HRXWEB/alfred-gitlab`.
+
 ## [v3.0.1] (2022-07-18)
 * Remove URLEncoding of repo URLs are they appear to break opening in Alfred 5 ([#9ce14af](https://github.com/lukewaite/alfred-gitlab/commit/9ce14af))
 

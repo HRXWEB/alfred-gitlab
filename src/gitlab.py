@@ -3,6 +3,7 @@
 import sys
 import argparse
 import pickle
+import re
 import subprocess
 from ipaddress import ip_address
 from urllib.parse import urlsplit, urlunsplit
@@ -13,6 +14,15 @@ from cache_state import invalidate_projects
 
 log = None
 UPDATE_REPO = 'HRXWEB/alfred-gitlab'
+DOMAIN_LABEL = re.compile(r'^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$')
+CACHE_ERRORS = (
+    pickle.UnpicklingError,
+    EOFError,
+    AttributeError,
+    ImportError,
+    IndexError,
+    OverflowError,
+)
 
 
 def search_for_project(project):
@@ -21,20 +31,38 @@ def search_for_project(project):
     return u' '.join(elements)
 
 
-def project_web_url(project_url, api_url):
-    configured_url = urlsplit(api_url)
+def valid_api_url(api_url):
+    try:
+        configured_url = urlsplit(api_url)
+        hostname = configured_url.hostname
+        configured_url.port
+    except (TypeError, ValueError):
+        return None
 
     if (
         configured_url.scheme not in ('http', 'https')
-        or not configured_url.hostname
+        or not hostname
         or configured_url.username
         or configured_url.password
     ):
-        return project_url
+        return None
 
     try:
-        configured_url.port
+        ip_address(hostname)
     except ValueError:
+        domain = hostname.rstrip('.')
+        if (
+            len(domain) > 253
+            or not all(DOMAIN_LABEL.match(label) for label in domain.split('.'))
+        ):
+            return None
+
+    return configured_url
+
+
+def project_web_url(project_url, api_url):
+    configured_url = valid_api_url(api_url)
+    if configured_url is None:
         return project_url
 
     try:
@@ -55,7 +83,7 @@ def project_web_url(project_url, api_url):
 def load_cached_projects(wf):
     try:
         return wf.cached_data('projects', None, max_age=0)
-    except (pickle.UnpicklingError, EOFError):
+    except CACHE_ERRORS:
         log.warning("Discarding corrupt GitLab project cache")
         invalidate_projects(wf)
         return None
@@ -94,7 +122,12 @@ def main(wf):
         return 0  # 0 means script exited cleanly
 
     if args.apiurl:
-        log.info("Setting API URL to {url}".format(url=args.apiurl))
+        configured_url = valid_api_url(args.apiurl)
+        if configured_url is None:
+            raise ValueError('GitLab API URL must be an absolute HTTP(S) URL')
+        log.info("Setting GitLab API URL")
+        if configured_url.scheme == 'http':
+            log.warning("GitLab API token transport is not encrypted over HTTP")
         wf.settings['api_url'] = args.apiurl
         invalidate_projects(wf)
         return 0

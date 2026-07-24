@@ -11,7 +11,11 @@ def get_projects(api_key, url):
 
 def get_project_page(api_key, url, page, stored_projects):
     log.info("Calling API page {page}".format(page=page))
-    response = mureq.get(url, params=({'private_token': api_key, 'per_page': 100, 'page': page, 'membership': 'true'}))
+    response = mureq.get(
+        url,
+        headers={'PRIVATE-TOKEN': api_key},
+        params={'per_page': 100, 'page': page, 'membership': 'true'},
+    )
 
     # throw an error if request failed
     # Workflow will catch this and show it to the user
@@ -29,10 +33,10 @@ def get_project_page(api_key, url, page, stored_projects):
 
 def main(wf):
     try:
+        generation = current_generation(wf)
         # Get API key from Keychain
         api_key = wf.get_password('gitlab_api_key')
         api_url = wf.settings.get('api_url', 'https://gitlab.com/api/v4/projects')
-        generation = current_generation(wf)
         projects = get_projects(api_key, api_url)
         stored = store_projects(wf, generation, projects)
 
@@ -50,4 +54,4 @@ def main(wf):
 if __name__ == "__main__":
     wf = Workflow()
     log = wf.logger
-    wf.run(main)
+    raise SystemExit(wf.run(main))
