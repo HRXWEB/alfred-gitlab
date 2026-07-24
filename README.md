@@ -40,6 +40,9 @@ Build the installable workflow at `GitLab.alfredworkflow`:
 ./scripts/build.sh
 ```
 
+The archive is built from the staged Git index. Stage source changes before
+building; unstaged files are not included.
+
 Pass a path to write the archive elsewhere:
 
 ```bash

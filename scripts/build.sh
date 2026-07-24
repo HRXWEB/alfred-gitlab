@@ -21,13 +21,6 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 repo_root = Path(sys.argv[1])
 archive_path = Path(sys.argv[2])
-status = subprocess.run(
-    ['git', '-C', str(repo_root), 'diff', '--quiet', '--', 'src'],
-    check=False,
-)
-if status.returncode:
-    raise RuntimeError('Stage or discard src changes before building')
-
 records = subprocess.check_output(
     ['git', '-C', str(repo_root), 'ls-files', '--stage', '-z', '--', 'src'],
 ).split(b'\0')
