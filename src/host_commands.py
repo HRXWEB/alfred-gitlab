@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol
 
 from cache_records import JSONValue, Projects, StatusRecord
@@ -10,11 +11,16 @@ from host_registry import (
     WorkflowLike,
 )
 from host_values import (
-    ProfileDraft,
     ProfileRecord,
     derive_host_name,
     parse_host_add,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class HostAddResult:
+    message: str
+    uses_http: bool
 
 
 class HostCommandWorkflow(WorkflowLike, Protocol):
@@ -40,18 +46,21 @@ def add_host(
     workflow: WorkflowLike,
     cache: HostCommandCache,
     argument: str,
-) -> str:
-    name, api_url, token = parse_host_add(argument)
-    resolved_name = derive_host_name(api_url) if name is None else name
+) -> HostAddResult:
+    draft = parse_host_add(argument)
+    resolved_name = (
+        derive_host_name(draft.api_url) if draft.name is None else draft.name
+    )
     existed = any(
         profile.name == resolved_name for profile in HostRegistry(workflow).profiles()
     )
     registry = _registry(workflow, cache)
-    profile = registry.add_or_update(
-        ProfileDraft(name=name, api_url=api_url, token=token)
-    )
+    profile = registry.add_or_update(draft)
     action = "Updated" if existed else "Added"
-    return f"{action} {profile.name}"
+    return HostAddResult(
+        message=f"{action} {profile.name}",
+        uses_http=profile.api_url.startswith("http://"),
+    )
 
 
 def remove_host(

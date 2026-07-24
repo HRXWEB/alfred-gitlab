@@ -432,7 +432,8 @@ def test_hostadd_reports_added_then_updated_without_exposing_token(capsys):
         ]
     )
     workflow.settings = {}
-    gitlab.log = FakeLogger()
+    logger = FakeLogger()
+    gitlab.log = logger
 
     gitlab.main(workflow)
     first_output = capsys.readouterr().out
@@ -452,9 +453,36 @@ def test_hostadd_reports_added_then_updated_without_exposing_token(capsys):
     assert "credential" not in repr(workflow.settings)
     assert "credential" not in repr(workflow.cache_writes)
     assert "credential" not in first_output + second_output
+    assert logger.warnings == []
     assert workflow.passwords[hosts.token_account(stored["id"])] == (
         "replacement-credential"
     )
+
+
+def test_hostadd_http_warns_once_without_exposing_token(capsys):
+    # Given: a synthetic HTTP host command and an observable workflow logger
+    token = "synthetic-http-credential"
+    workflow = FakeWorkflow(
+        [
+            "--hostadd",
+            f"lab http://192.0.2.10:8080/api/v4/projects {token}",
+        ]
+    )
+    workflow.settings = {}
+    logger = FakeLogger()
+    gitlab.log = logger
+
+    # When: the host is added through the primary CLI entrypoint
+    gitlab.main(workflow)
+
+    # Then: only the generic warning is logged and stdout remains sanitized
+    output = capsys.readouterr().out
+    assert logger.warnings == [
+        "GitLab API token transport is not encrypted over HTTP"
+    ]
+    assert output == "Added lab\n"
+    assert token not in output
+    assert token not in repr(logger.warnings)
 
 
 def test_render_host_list_shows_counts_and_sanitized_status():

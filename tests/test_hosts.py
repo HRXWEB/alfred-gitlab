@@ -482,10 +482,10 @@ def test_parse_host_add_when_alias_is_omitted():
     result = host_values.parse_host_add(argument)
 
     # Then: no explicit alias is returned
-    assert result == (
-        None,
-        "https://gitlab.example.com/api/v4/projects",
-        "example-token",
+    assert result == host_values.ProfileDraft(
+        name=None,
+        api_url="https://gitlab.example.com/api/v4/projects",
+        token="example-token",
     )
 
 
@@ -499,10 +499,10 @@ def test_parse_host_add_when_alias_is_provided():
     result = host_values.parse_host_add(argument)
 
     # Then: the explicit alias is returned
-    assert result == (
-        "company",
-        "https://gitlab.example.com/api/v4/projects",
-        "example-token",
+    assert result == host_values.ProfileDraft(
+        name="company",
+        api_url="https://gitlab.example.com/api/v4/projects",
+        token="example-token",
     )
 
 

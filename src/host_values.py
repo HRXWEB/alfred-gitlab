@@ -121,12 +121,12 @@ def derive_host_name(api_url: str) -> str:
     return f"{authority}:{parsed.port}" if parsed.port else authority
 
 
-def parse_host_add(argument: str) -> tuple[str | None, str, str]:
+def parse_host_add(argument: str) -> ProfileDraft:
     parts = shlex.split(argument)
     if len(parts) == 2:
-        return None, parts[0], parts[1]
+        return ProfileDraft(name=None, api_url=parts[0], token=parts[1])
     if len(parts) == 3:
         if any(char.isspace() for char in parts[0]):
             raise InvalidHostNameError("whitespace is not allowed")
-        return parts[0], parts[1], parts[2]
+        return ProfileDraft(name=parts[0], api_url=parts[1], token=parts[2])
     raise InvalidHostCommandError

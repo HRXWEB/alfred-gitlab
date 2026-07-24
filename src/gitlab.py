@@ -18,6 +18,9 @@ from workflow import ICON_INFO, ICON_WARNING, Workflow3
 
 log = None
 UPDATE_REPO = "HRXWEB/alfred-gitlab"
+INSECURE_TRANSPORT_WARNING = (
+    "GitLab API token transport is not encrypted over HTTP"
+)
 
 
 def project_web_url(project_url, api_url):
@@ -92,7 +95,10 @@ def main(wf):
     cache = CacheState(wf)
     if args.hostadd is not None:
         _ = ensure_profiles(wf, cache)
-        print(add_host(wf, cache, args.hostadd))
+        result = add_host(wf, cache, args.hostadd)
+        if result.uses_http:
+            log.warning(INSECURE_TRANSPORT_WARNING)
+        print(result.message)
         return 0
 
     if args.hostremove is not None:
@@ -117,7 +123,7 @@ def main(wf):
             raise InvalidApiUrlError
         log.info("Setting GitLab API URL")
         if configured_url.scheme == "http":
-            log.warning("GitLab API token transport is not encrypted over HTTP")
+            log.warning(INSECURE_TRANSPORT_WARNING)
         set_default_url(wf, args.apiurl, CacheState(wf))
         return 0
 
