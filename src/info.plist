@@ -159,6 +159,32 @@
 				<false/>
 			</dict>
 		</array>
+		<key>E4B73A0C-6F5A-4D72-9B21-0D4C3E8A1F90</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F2C85B17-7A64-4E39-A8D6-1B5F0C9E2A73</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>F2C85B17-7A64-4E39-A8D6-1B5F0C9E2A73</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A7D91E46-3C58-4F20-B6A1-8E2C5D7F904B</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Luke Waite</string>
@@ -291,7 +317,7 @@
 				<key>fixedorder</key>
 				<false/>
 				<key>items</key>
-				<string>[{"title":"Pipelines","arg":"pipelines"},{"title":"Overview"},{"title":"Issues","arg":"issues"},{"title":"Merge Request","arg":"merge_requests"}]</string>
+				<string>[{"title":"Pipelines","arg":"-/pipelines"},{"title":"Overview"},{"title":"Issues","arg":"-/issues"},{"title":"Merge Request","arg":"-/merge_requests"}]</string>
 				<key>matchmode</key>
 				<integer>0</integer>
 				<key>runningsubtext</key>
@@ -499,6 +525,71 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>keyword</key>
+				<string>glrefresh</string>
+				<key>subtext</key>
+				<string>Fetch your GitLab projects now</string>
+				<key>text</key>
+				<string>Refresh GitLab projects</string>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>E4B73A0C-6F5A-4D72-9B21-0D4C3E8A1F90</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>python3 gitlab.py --refresh</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>F2C85B17-7A64-4E39-A8D6-1B5F0C9E2A73</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>Your GitLab projects have been refreshed.</string>
+				<key>title</key>
+				<string>Refreshed GitLab Projects</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>A7D91E46-3C58-4F20-B6A1-8E2C5D7F904B</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string>Setup and Usage
@@ -507,6 +598,7 @@
 * (Optionally) Tell it where the GitLab API you want to connect to is by running `glseturl https://&lt;host&gt;/api/v4/projects`
   * Defaults to GitLab.com's public API
 * search for projects with `gl &lt;search&gt;`
+* refresh projects immediately with `glrefresh`
 * Optionally, disable sub-page navigation by setting `quick_open` to `true` in Workflow Configuration.</string>
 	<key>uidata</key>
 	<dict>
@@ -566,6 +658,13 @@
 			<key>ypos</key>
 			<real>670</real>
 		</dict>
+		<key>A7D91E46-3C58-4F20-B6A1-8E2C5D7F904B</key>
+		<dict>
+			<key>xpos</key>
+			<real>510</real>
+			<key>ypos</key>
+			<real>830</real>
+		</dict>
 		<key>B6427010-7B56-4342-B5AC-85D22C5E5C50</key>
 		<dict>
 			<key>xpos</key>
@@ -608,6 +707,20 @@
 			<key>ypos</key>
 			<real>150</real>
 		</dict>
+		<key>E4B73A0C-6F5A-4D72-9B21-0D4C3E8A1F90</key>
+		<dict>
+			<key>xpos</key>
+			<real>70</real>
+			<key>ypos</key>
+			<real>830</real>
+		</dict>
+		<key>F2C85B17-7A64-4E39-A8D6-1B5F0C9E2A73</key>
+		<dict>
+			<key>xpos</key>
+			<real>300</real>
+			<key>ypos</key>
+			<real>830</real>
+		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
 	<array/>
@@ -621,7 +734,7 @@
 		<string>quick_open</string>
 	</array>
 	<key>version</key>
-	<string>3.0.1</string>
+	<string>3.1.0</string>
 	<key>webaddress</key>
 	<string>https://lukewaite.ca</string>
 </dict>

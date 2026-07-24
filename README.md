@@ -9,6 +9,13 @@ Quickly navigate to GitLab projects in [Alfred 3][alfred].
 * (Optionally) Tell it where the GitLab API you want to connect to is by running `glseturl https://<host>/api/v4/projects`
   * Defaults to GitLab.com's public API
 * search for projects with `gl <search>`
+* refresh projects immediately with `glrefresh`
+
+### Upgrading from v3.0.1
+
+The upstream v3.0.1 workflow cannot discover releases from this fork. Download
+`GitLab.alfredworkflow` from this fork's [releases] page and install it once.
+After v3.1.0 is installed, future update checks use `HRXWEB/alfred-gitlab`.
 
 ### Sub-Page Navigation
 ![][sub-page]
@@ -25,6 +32,23 @@ By default, we will only show projects which you are a member of.
 * Add alfred-workflow updater notifications
 * Clean up 
 
+## Building
+
+Build the installable workflow at `GitLab.alfredworkflow`:
+
+```bash
+./scripts/build.sh
+```
+
+The archive is built from the staged Git index. Stage source changes before
+building; unstaged files are not included.
+
+Pass a path to write the archive elsewhere:
+
+```bash
+./scripts/build.sh /tmp/GitLab.alfredworkflow
+```
+
 # Thanks, License, Copyright
 
 - The [Alfred-Workflow][alfred-workflow] library is used heavily, and it's wonderful documentation was key in building the plugin.
@@ -36,5 +60,6 @@ All other code/media are released under the [MIT Licence][license].
 [alfred-workflow]: http://www.deanishe.net/alfred-workflow/
 [wf-vars]: https://www.alfredapp.com/help/workflows/advanced/variables/
 [license]: src/LICENSE.txt
+[releases]: https://github.com/HRXWEB/alfred-gitlab/releases
 [sample]: https://raw.github.com/lukewaite/alfred-gitlab/master/docs/sample.png
 [sub-page]: https://raw.github.com/lukewaite/alfred-gitlab/master/docs/sub-page.png

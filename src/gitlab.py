@@ -2,16 +2,98 @@
 
 import sys
 import argparse
+import pickle
+import re
+import subprocess
+from ipaddress import ip_address
+from urllib.parse import urlsplit, urlunsplit
+
 from workflow import Workflow3, ICON_WARNING, ICON_INFO, PasswordNotFound
 from workflow.background import run_in_background, is_running
+from cache_state import invalidate_projects
 
 log = None
+UPDATE_REPO = 'HRXWEB/alfred-gitlab'
+DOMAIN_LABEL = re.compile(r'^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$')
+CACHE_ERRORS = (
+    pickle.UnpicklingError,
+    EOFError,
+    AttributeError,
+    ImportError,
+    IndexError,
+    OverflowError,
+    UnicodeDecodeError,
+    ValueError,
+)
 
 
 def search_for_project(project):
     """Generate a string search key for a project"""
     elements = [project['name_with_namespace'], project['path_with_namespace']]
     return u' '.join(elements)
+
+
+def valid_api_url(api_url):
+    try:
+        configured_url = urlsplit(api_url)
+        hostname = configured_url.hostname
+        configured_url.port
+    except (TypeError, ValueError):
+        return None
+
+    if (
+        configured_url.scheme not in ('http', 'https')
+        or not hostname
+        or configured_url.username
+        or configured_url.password
+    ):
+        return None
+
+    try:
+        ip_address(hostname)
+    except ValueError:
+        domain = hostname.rstrip('.')
+        if (
+            len(domain) > 253
+            or not all(DOMAIN_LABEL.match(label) for label in domain.split('.'))
+        ):
+            return None
+
+    return configured_url
+
+
+def project_web_url(project_url, api_url):
+    configured_url = valid_api_url(api_url)
+    if configured_url is None:
+        return project_url
+
+    try:
+        ip_address(configured_url.hostname)
+    except ValueError:
+        project = urlsplit(project_url)
+        return urlunsplit((
+            configured_url.scheme,
+            configured_url.netloc,
+            project.path,
+            project.query,
+            project.fragment,
+        ))
+
+    return project_url
+
+
+def load_cached_projects(wf):
+    try:
+        projects = wf.cached_data('projects', None, max_age=0)
+    except CACHE_ERRORS:
+        log.warning("Discarding corrupt GitLab project cache")
+        invalidate_projects(wf)
+        return None
+    if projects is not None and not isinstance(projects, list):
+        log.warning("Discarding invalid GitLab project cache")
+        invalidate_projects(wf)
+        return None
+    return projects
 
 
 def main(wf):
@@ -23,6 +105,7 @@ def main(wf):
     # action with the API key
     parser.add_argument('--setkey', dest='apikey', nargs='?', default=None)
     parser.add_argument('--seturl', dest='apiurl', nargs='?', default=None)
+    parser.add_argument('--refresh', action='store_true')
     parser.add_argument('query', nargs='?', default=None)
     # parse the script's arguments
     args = parser.parse_args(wf.args)
@@ -32,14 +115,28 @@ def main(wf):
     ####################################################################
 
     # decide what to do based on arguments
+    if args.refresh:
+        log.info("Refreshing GitLab projects")
+        invalidate_projects(wf)
+        subprocess.check_call(
+            [sys.executable, wf.workflowfile('update.py')])
+        return 0
+
     if args.apikey:  # Script was passed an API key
         log.info("Setting API Key")
         wf.save_password('gitlab_api_key', args.apikey)
+        invalidate_projects(wf)
         return 0  # 0 means script exited cleanly
 
     if args.apiurl:
-        log.info("Setting API URL to {url}".format(url=args.apiurl))
+        configured_url = valid_api_url(args.apiurl)
+        if configured_url is None:
+            raise ValueError('GitLab API URL must be an absolute HTTP(S) URL')
+        log.info("Setting GitLab API URL")
+        if configured_url.scheme == 'http':
+            log.warning("GitLab API token transport is not encrypted over HTTP")
         wf.settings['api_url'] = args.apiurl
+        invalidate_projects(wf)
         return 0
 
     ####################################################################
@@ -62,7 +159,7 @@ def main(wf):
 
     query = args.query
 
-    projects = wf.cached_data('projects', None, max_age=0)
+    projects = load_cached_projects(wf)
 
     if wf.update_available:
         # Add a notification to top of Script Filter results
@@ -96,10 +193,13 @@ def main(wf):
 
     # Loop through the returned posts and add an item for each to
     # the list of results for Alfred
+    api_url = wf.settings.get(
+        'api_url', 'https://gitlab.com/api/v4/projects')
+
     for project in projects:
         wf.add_item(title=project['name_with_namespace'],
                     subtitle=project['path_with_namespace'],
-                    arg=project['web_url'],
+                    arg=project_web_url(project['web_url'], api_url),
                     valid=True,
                     icon=None,
                     uid=project['id'])
@@ -110,7 +210,7 @@ def main(wf):
 
 if __name__ == u"__main__":
     wf = Workflow3(update_settings={
-        'github_slug': 'lukewaite/alfred-gitlab',
+        'github_slug': UPDATE_REPO,
     })
     log = wf.logger
     sys.exit(wf.run(main))
