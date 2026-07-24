@@ -5,6 +5,23 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v4.0.0] (2026-07-24)
+* Add named multi-host profiles with optional domain, IP address, port, and
+  IPv6-derived names
+* Aggregate projects from every host while labeling each result with its
+  source and keeping duplicate cross-host project IDs distinct
+* Isolate credentials, project caches, refresh generations, and sanitized
+  failure status per host
+* Refresh hosts independently, retain a failed host's previous cache, and
+  report partial-failure summaries
+* Add `glhostadd`, `glhostlist`, and `glhostremove` host-management commands
+  and refresh every profile with `glrefresh`
+* Migrate the v3.1.0 default URL, credential, and cache without deleting
+  legacy state needed for downgrade preservation
+* Preserve `glseturl` and `glsetkey` compatibility through the default profile
+* Publish workflow metadata as `HRXWEB`, version `4.0.0`, without changing the
+  workflow bundle ID
+
 ## [v3.1.0] (2026-07-24)
 * Rewrite project links to use the configured GitLab domain
 * Refresh projects immediately with `glrefresh`
@@ -78,7 +95,8 @@ upgraded to the fork in the meantime has the ability to pull updates in the futu
 
 * Initial implementaiton of alfred-gitlab workflow
 
-[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.0.0...HEAD
+[v4.0.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.1.0...v4.0.0
 [v3.1.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.0.1...v3.1.0
 [v3.0.0]: https://github.com/lukewaite/alfred-gitlab/compare/v3.0.0...v3.0.1
 [v3.0.0]: https://github.com/lukewaite/alfred-gitlab/compare/v1.6.0...v3.0.0
