@@ -1,3 +1,5 @@
 *.pyc
 .idea
 docs/superpowers/
+docs/designs/
+docs/plans/
