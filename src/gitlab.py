@@ -2,12 +2,14 @@
 
 import sys
 import argparse
+import pickle
 import subprocess
 from ipaddress import ip_address
 from urllib.parse import urlsplit, urlunsplit
 
 from workflow import Workflow3, ICON_WARNING, ICON_INFO, PasswordNotFound
 from workflow.background import run_in_background, is_running
+from cache_state import invalidate_projects
 
 log = None
 UPDATE_REPO = 'HRXWEB/alfred-gitlab'
@@ -22,6 +24,19 @@ def search_for_project(project):
 def project_web_url(project_url, api_url):
     configured_url = urlsplit(api_url)
 
+    if (
+        configured_url.scheme not in ('http', 'https')
+        or not configured_url.hostname
+        or configured_url.username
+        or configured_url.password
+    ):
+        return project_url
+
+    try:
+        configured_url.port
+    except ValueError:
+        return project_url
+
     try:
         ip_address(configured_url.hostname)
     except ValueError:
@@ -35,6 +50,15 @@ def project_web_url(project_url, api_url):
         ))
 
     return project_url
+
+
+def load_cached_projects(wf):
+    try:
+        return wf.cached_data('projects', None, max_age=0)
+    except (pickle.UnpicklingError, EOFError):
+        log.warning("Discarding corrupt GitLab project cache")
+        invalidate_projects(wf)
+        return None
 
 
 def main(wf):
@@ -58,20 +82,21 @@ def main(wf):
     # decide what to do based on arguments
     if args.refresh:
         log.info("Refreshing GitLab projects")
-        wf.cache_data('projects', None)
-        return subprocess.call(
+        invalidate_projects(wf)
+        subprocess.check_call(
             [sys.executable, wf.workflowfile('update.py')])
+        return 0
 
     if args.apikey:  # Script was passed an API key
         log.info("Setting API Key")
         wf.save_password('gitlab_api_key', args.apikey)
-        wf.cache_data('projects', None)
+        invalidate_projects(wf)
         return 0  # 0 means script exited cleanly
 
     if args.apiurl:
         log.info("Setting API URL to {url}".format(url=args.apiurl))
         wf.settings['api_url'] = args.apiurl
-        wf.cache_data('projects', None)
+        invalidate_projects(wf)
         return 0
 
     ####################################################################
@@ -94,7 +119,7 @@ def main(wf):
 
     query = args.query
 
-    projects = wf.cached_data('projects', None, max_age=0)
+    projects = load_cached_projects(wf)
 
     if wf.update_available:
         # Add a notification to top of Script Filter results

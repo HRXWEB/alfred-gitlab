@@ -1,6 +1,7 @@
 from pathlib import Path
 import plistlib
 import sys
+import tempfile
 
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
@@ -16,6 +17,9 @@ class FakeLogger:
     def info(self, message):
         pass
 
+    def warning(self, message):
+        pass
+
 
 class FakeWorkflow:
     def __init__(self, args):
@@ -23,6 +27,7 @@ class FakeWorkflow:
         self.settings = {}
         self.saved_passwords = []
         self.cache_writes = []
+        self.data_dir = tempfile.TemporaryDirectory()
 
     def save_password(self, name, value):
         self.saved_passwords.append((name, value))
@@ -32,6 +37,9 @@ class FakeWorkflow:
 
     def workflowfile(self, name):
         return str(SRC_DIR / name)
+
+    def datafile(self, name):
+        return str(Path(self.data_dir.name) / name)
 
 
 def test_project_web_url_uses_configured_domain():
@@ -68,6 +76,28 @@ def test_project_web_url_preserves_url_for_configured_ipv6():
     assert result == project_url
 
 
+def test_project_web_url_preserves_url_without_configured_host():
+    project_url = "https://canonical.example/teams/sample-project"
+
+    result = gitlab.project_web_url(
+        project_url,
+        "gitlab.example.com/api/v4/projects",
+    )
+
+    assert result == project_url
+
+
+def test_project_web_url_preserves_url_with_configured_credentials():
+    project_url = "https://canonical.example/teams/sample-project"
+
+    result = gitlab.project_web_url(
+        project_url,
+        "https://user:password@gitlab.example.com/api/v4/projects",
+    )
+
+    assert result == project_url
+
+
 def test_setting_api_key_invalidates_projects_cache():
     workflow = FakeWorkflow(["--setkey", "new-token"])
     gitlab.log = FakeLogger()
@@ -92,13 +122,26 @@ def test_setting_api_url_invalidates_projects_cache():
     assert workflow.cache_writes == [("projects", None)]
 
 
+def test_corrupt_projects_cache_is_invalidated():
+    workflow = FakeWorkflow([])
+    workflow.cached_data = lambda *args, **kwargs: (_ for _ in ()).throw(
+        gitlab.pickle.UnpicklingError("invalid cache")
+    )
+    gitlab.log = FakeLogger()
+
+    result = gitlab.load_cached_projects(workflow)
+
+    assert result is None
+    assert workflow.cache_writes == [("projects", None)]
+
+
 def test_refresh_reloads_projects_synchronously(monkeypatch):
     workflow = FakeWorkflow(["--refresh"])
     commands = []
     gitlab.log = FakeLogger()
     monkeypatch.setattr(
         gitlab.subprocess,
-        "call",
+        "check_call",
         lambda command: commands.append(command) or 0,
     )
 
@@ -107,6 +150,27 @@ def test_refresh_reloads_projects_synchronously(monkeypatch):
     assert workflow.cache_writes == [("projects", None)]
     assert commands == [[sys.executable, str(SRC_DIR / "update.py")]]
     assert result == 0
+
+
+def test_refresh_propagates_update_failure(monkeypatch):
+    workflow = FakeWorkflow(["--refresh"])
+    gitlab.log = FakeLogger()
+    failure = lambda command: (_ for _ in ()).throw(
+        gitlab.subprocess.CalledProcessError(1, command)
+    )
+    monkeypatch.setattr(
+        gitlab.subprocess,
+        "check_call",
+        failure,
+    )
+    monkeypatch.setattr(gitlab.subprocess, "call", failure)
+
+    try:
+        gitlab.main(workflow)
+    except gitlab.subprocess.CalledProcessError as error:
+        assert error.returncode == 1
+    else:
+        raise AssertionError("refresh failure was not propagated")
 
 
 def test_workflow_exposes_glrefresh_keyword():
@@ -129,3 +193,19 @@ def test_workflow_exposes_glrefresh_keyword():
     script_uid = workflow["connections"][keyword_uid][0]["destinationuid"]
     script = next(item for item in objects if item["uid"] == script_uid)
     assert script["config"]["script"] == "python3 gitlab.py --refresh"
+
+
+def test_workflow_uses_gitlab_16_subpage_paths():
+    with (SRC_DIR / "info.plist").open("rb") as plist_file:
+        workflow = plistlib.load(plist_file)
+
+    list_items = [
+        item["config"]["items"]
+        for item in workflow["objects"]
+        if item["type"] == "alfred.workflow.input.listfilter"
+    ]
+
+    assert len(list_items) == 1
+    assert '"arg":"-/pipelines"' in list_items[0]
+    assert '"arg":"-/issues"' in list_items[0]
+    assert '"arg":"-/merge_requests"' in list_items[0]

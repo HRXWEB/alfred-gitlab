@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Rewrite project links to use the configured GitLab domain
 * Refresh projects immediately with `glrefresh`
 * Invalidate the project cache when the API key or URL changes
+* Use GitLab 16-compatible project subpage paths
+* Build reproducible workflow archives from tracked source files
 
 ## [v3.0.1] (2022-07-18)
 * Remove URLEncoding of repo URLs are they appear to break opening in Alfred 5 ([#9ce14af](https://github.com/lukewaite/alfred-gitlab/commit/9ce14af))
