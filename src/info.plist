@@ -185,9 +185,61 @@
 				<false/>
 			</dict>
 		</array>
+		<key>40A79E4C-3135-491D-A9F6-31A7F359371D</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>30729D56-8C3D-4383-8348-A71ECCBA106A</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>30729D56-8C3D-4383-8348-A71ECCBA106A</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>CDDFCB40-21C8-4F4C-B94E-46FA7586AFF9</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>5F74D9B7-EEE0-4666-B5D4-2478FA7AE687</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>12F36B99-8EF0-4D27-BFD4-5AA673B97B23</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>12F36B99-8EF0-4D27-BFD4-5AA673B97B23</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>126C3851-9727-4A71-A74F-1C823C63B88D</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
-	<string>Luke Waite</string>
+	<string>HRXWEB</string>
 	<key>description</key>
 	<string></string>
 	<key>disabled</key>
@@ -579,7 +631,7 @@
 				<key>removeextension</key>
 				<false/>
 				<key>text</key>
-				<string>Your GitLab projects have been refreshed.</string>
+				<string>{query}</string>
 				<key>title</key>
 				<string>Refreshed GitLab Projects</string>
 			</dict>
@@ -590,16 +642,214 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>glhostadd</string>
+				<key>subtext</key>
+				<string>Enter [name] &lt;api_url&gt; &lt;token&gt; and hit ENTER</string>
+				<key>text</key>
+				<string>Add or update a GitLab host</string>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>40A79E4C-3135-491D-A9F6-31A7F359371D</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>python3 gitlab.py --hostadd "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>30729D56-8C3D-4383-8348-A71ECCBA106A</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>GitLab Host Saved</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>CDDFCB40-21C8-4F4C-B94E-46FA7586AFF9</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>glhostlist</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Loading GitLab hosts...</string>
+				<key>script</key>
+				<string>python3 gitlab.py --hostlist</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string></string>
+				<key>title</key>
+				<string>List GitLab hosts</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>3E649DB5-CEE0-4B3E-BBA4-03F5F29B3031</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>glhostremove</string>
+				<key>subtext</key>
+				<string>Enter the exact host name and hit ENTER</string>
+				<key>text</key>
+				<string>Remove a GitLab host</string>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>5F74D9B7-EEE0-4666-B5D4-2478FA7AE687</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>python3 gitlab.py --hostremove "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>12F36B99-8EF0-4D27-BFD4-5AA673B97B23</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>GitLab Host Removed</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>126C3851-9727-4A71-A74F-1C823C63B88D</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string>Setup and Usage
 
-* Generate a GitLab personal access token (https://gitlab.com/profile/personal_access_tokens) then run `glsetkey &lt;yourkey&gt;`
-* (Optionally) Tell it where the GitLab API you want to connect to is by running `glseturl https://&lt;host&gt;/api/v4/projects`
-  * Defaults to GitLab.com's public API
-* search for projects with `gl &lt;search&gt;`
-* refresh projects immediately with `glrefresh`
-* Optionally, disable sub-page navigation by setting `quick_open` to `true` in Workflow Configuration.</string>
+Commands
+
+* `glhostadd [name] &lt;api_url&gt; &lt;token&gt;` adds a host, or updates the host with that name.
+* `glhostlist` lists every configured host, its cached project count, and its latest refresh state.
+* `glhostremove &lt;name&gt;` removes the exact host name and its local state.
+* `glrefresh` refreshes every host immediately.
+* `gl &lt;query&gt;` searches the combined projects from every configured host. Host names appear in result subtitles so matching projects remain distinguishable.
+
+The optional name in `glhostadd` is useful for a friendly label. Without it, a domain is named from its hostname:
+
+`glhostadd https://gitlab.example.test/api/v4/projects token-example`
+
+The automatic name is `gitlab.example.test`. IP addresses retain their port when present:
+
+`glhostadd http://192.0.2.10:8080/api/v4/projects token-example`
+
+The automatic name is `192.0.2.10:8080`.
+
+Refreshes are independent. If one host fails, other hosts still publish their new projects, the failed host keeps its previous cached projects, and the `glrefresh` notification reports refreshed and failed counts.
+
+Compatibility commands `glsetkey &lt;token&gt;` and `glseturl &lt;api_url&gt;` continue to configure the default host. GitLab.com remains the default API for a new installation.
+
+WARNING: Alfred Debugger output includes command input, including the token entered with `glhostadd` or `glsetkey`. Do not open or share debugger output while entering a token.
+
+Optionally, disable sub-page navigation by setting `quick_open` to `true` in Workflow Configuration.</string>
 	<key>uidata</key>
 	<dict>
 		<key>07D583FC-AFE3-47D1-8076-FF78BE066E4E</key>
@@ -721,6 +971,55 @@
 			<key>ypos</key>
 			<real>830</real>
 		</dict>
+		<key>40A79E4C-3135-491D-A9F6-31A7F359371D</key>
+		<dict>
+			<key>xpos</key>
+			<real>70</real>
+			<key>ypos</key>
+			<real>990</real>
+		</dict>
+		<key>30729D56-8C3D-4383-8348-A71ECCBA106A</key>
+		<dict>
+			<key>xpos</key>
+			<real>300</real>
+			<key>ypos</key>
+			<real>990</real>
+		</dict>
+		<key>CDDFCB40-21C8-4F4C-B94E-46FA7586AFF9</key>
+		<dict>
+			<key>xpos</key>
+			<real>510</real>
+			<key>ypos</key>
+			<real>990</real>
+		</dict>
+		<key>3E649DB5-CEE0-4B3E-BBA4-03F5F29B3031</key>
+		<dict>
+			<key>xpos</key>
+			<real>70</real>
+			<key>ypos</key>
+			<real>1150</real>
+		</dict>
+		<key>5F74D9B7-EEE0-4666-B5D4-2478FA7AE687</key>
+		<dict>
+			<key>xpos</key>
+			<real>70</real>
+			<key>ypos</key>
+			<real>1310</real>
+		</dict>
+		<key>12F36B99-8EF0-4D27-BFD4-5AA673B97B23</key>
+		<dict>
+			<key>xpos</key>
+			<real>300</real>
+			<key>ypos</key>
+			<real>1310</real>
+		</dict>
+		<key>126C3851-9727-4A71-A74F-1C823C63B88D</key>
+		<dict>
+			<key>xpos</key>
+			<real>510</real>
+			<key>ypos</key>
+			<real>1310</real>
+		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
 	<array/>
@@ -734,7 +1033,7 @@
 		<string>quick_open</string>
 	</array>
 	<key>version</key>
-	<string>3.1.0</string>
+	<string>4.0.0</string>
 	<key>webaddress</key>
 	<string>https://lukewaite.ca</string>
 </dict>

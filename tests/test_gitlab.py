@@ -20,6 +20,11 @@ PROFILE_ID = "a" * 32
 PUBLIC_PROFILE_ID = "b" * 32
 
 
+def load_plist():
+    with (SRC_DIR / "info.plist").open("rb") as plist_file:
+        return plistlib.load(plist_file)
+
+
 def test_updates_are_loaded_from_the_fork():
     assert gitlab.UPDATE_REPO == "HRXWEB/alfred-gitlab"
 
@@ -803,8 +808,7 @@ def test_refresh_propagates_update_failure(monkeypatch):
 
 
 def test_workflow_exposes_glrefresh_keyword():
-    with (SRC_DIR / "info.plist").open("rb") as plist_file:
-        workflow = plistlib.load(plist_file)
+    workflow = load_plist()
 
     objects = workflow["objects"]
     refresh_keywords = [
@@ -824,9 +828,101 @@ def test_workflow_exposes_glrefresh_keyword():
     assert script["config"]["script"] == "python3 gitlab.py --refresh"
 
 
+def test_v4_workflow_metadata():
+    workflow = load_plist()
+
+    assert workflow["version"] == "4.0.0"
+    assert workflow["createdby"] == "HRXWEB"
+    assert workflow["bundleid"] == "com.lukewaite.alfred-gitlab"
+
+
+@pytest.mark.parametrize(
+    ("keyword", "script"),
+    [
+        ("glhostadd", 'python3 gitlab.py --hostadd "{query}"'),
+        ("glhostremove", 'python3 gitlab.py --hostremove "{query}"'),
+    ],
+)
+def test_host_keyword_connection(keyword, script):
+    workflow = load_plist()
+    keyword_object = next(
+        item
+        for item in workflow["objects"]
+        if item.get("config", {}).get("keyword") == keyword
+    )
+    destination_uid = workflow["connections"][keyword_object["uid"]][0][
+        "destinationuid"
+    ]
+    action = next(
+        item for item in workflow["objects"] if item["uid"] == destination_uid
+    )
+
+    assert action["config"]["script"] == script
+
+
+@pytest.mark.parametrize("keyword", ["glhostadd", "glhostremove"])
+def test_host_mutation_keyword_requires_argument_and_notifies_with_output(keyword):
+    workflow = load_plist()
+    objects_by_uid = {item["uid"]: item for item in workflow["objects"]}
+    keyword_object = next(
+        item
+        for item in workflow["objects"]
+        if item.get("config", {}).get("keyword") == keyword
+    )
+    action_uid = workflow["connections"][keyword_object["uid"]][0]["destinationuid"]
+    notification_uid = workflow["connections"][action_uid][0]["destinationuid"]
+
+    assert keyword_object["type"] == "alfred.workflow.input.keyword"
+    assert keyword_object["config"]["argumenttype"] == 0
+    assert keyword_object["config"]["withspace"] is True
+    assert objects_by_uid[notification_uid]["config"]["text"] == "{query}"
+
+
+def test_hostlist_is_no_argument_script_filter():
+    workflow = load_plist()
+    hostlist = next(
+        item
+        for item in workflow["objects"]
+        if item.get("config", {}).get("keyword") == "glhostlist"
+    )
+
+    assert hostlist["type"] == "alfred.workflow.input.scriptfilter"
+    assert hostlist["config"]["argumenttype"] == 2
+    assert hostlist["config"]["withspace"] is False
+    assert hostlist["config"]["script"] == "python3 gitlab.py --hostlist"
+
+
+def test_refresh_notification_uses_summary_output():
+    workflow = load_plist()
+    refresh = next(
+        item
+        for item in workflow["objects"]
+        if item.get("config", {}).get("keyword") == "glrefresh"
+    )
+    script_uid = workflow["connections"][refresh["uid"]][0]["destinationuid"]
+    notification_uid = workflow["connections"][script_uid][0]["destinationuid"]
+    notification = next(
+        item for item in workflow["objects"] if item["uid"] == notification_uid
+    )
+
+    assert notification["config"]["text"] == "{query}"
+
+
+def test_workflow_graph_uids_and_connections_are_valid():
+    workflow = load_plist()
+    object_uids = [item["uid"] for item in workflow["objects"]]
+
+    assert len(object_uids) == len(set(object_uids))
+    assert set(workflow["connections"]).issubset(object_uids)
+    assert {
+        connection["destinationuid"]
+        for connections in workflow["connections"].values()
+        for connection in connections
+    }.issubset(object_uids)
+
+
 def test_workflow_uses_gitlab_16_subpage_paths():
-    with (SRC_DIR / "info.plist").open("rb") as plist_file:
-        workflow = plistlib.load(plist_file)
+    workflow = load_plist()
 
     list_items = [
         item["config"]["items"]
