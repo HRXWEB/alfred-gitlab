@@ -1,5 +1,6 @@
 *.pyc
 .idea
+.worktrees/
 docs/superpowers/
 docs/designs/
 docs/plans/
