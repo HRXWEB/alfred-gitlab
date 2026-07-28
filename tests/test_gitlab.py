@@ -905,7 +905,7 @@ def test_workflow_exposes_glrefresh_keyword():
 def test_v4_workflow_metadata():
     workflow = load_plist()
 
-    assert workflow["version"] == "4.0.0"
+    assert workflow["version"] == "4.1.0"
     assert workflow["createdby"] == "HRXWEB"
     assert workflow["bundleid"] == "com.lukewaite.alfred-gitlab"
 
@@ -1008,3 +1008,20 @@ def test_workflow_uses_gitlab_16_subpage_paths():
     assert '"arg":"-/pipelines"' in list_items[0]
     assert '"arg":"-/issues"' in list_items[0]
     assert '"arg":"-/merge_requests"' in list_items[0]
+    assert '"arg":"-/project_members"' in list_items[0]
+    assert '"arg":"-/network/main"' in list_items[0]
+    assert '"arg":"-/settings/ci_cd"' in list_items[0]
+
+
+def test_workflow_exposes_quick_open_configuration():
+    workflow = load_plist()
+
+    quick_open = next(
+        item
+        for item in workflow["userconfigurationconfig"]
+        if item["variable"] == "quick_open"
+    )
+
+    assert workflow["variables"]["quick_open"] == "0"
+    assert quick_open["type"] == "checkbox"
+    assert quick_open["config"]["default"] is False

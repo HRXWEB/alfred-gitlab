@@ -5,6 +5,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v4.1.0] (2026-07-28)
+* Show the project page menu by default and expose `Quick open` as a workflow
+  configuration checkbox
+* Add project page shortcuts for members, repository graph, and CI/CD settings
+* Document validation with Alfred 5.7.3 [2320]
+
 ## [v4.0.0] (2026-07-24)
 * Add named multi-host profiles with optional domain, IP address, port, and
   IPv6-derived names
@@ -95,7 +101,8 @@ upgraded to the fork in the meantime has the ability to pull updates in the futu
 
 * Initial implementaiton of alfred-gitlab workflow
 
-[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.1.0...HEAD
+[v4.1.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.0.0...v4.1.0
 [v4.0.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.1.0...v4.0.0
 [v3.1.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.0.1...v3.1.0
 [v3.0.0]: https://github.com/lukewaite/alfred-gitlab/compare/v3.0.0...v3.0.1

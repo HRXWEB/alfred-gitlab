@@ -79,10 +79,11 @@ After v3.1.0 is installed, future update checks use `HRXWEB/alfred-gitlab`.
 ### Sub-page navigation
 
 ![][sub-page]
-After selecting a repository, you are prompted with a page to navigate to. You can disable this behaviour
-by setting the `quick_open` workflow variable to `true`.
+After selecting a repository, you are prompted with a page to navigate to.
+Enable the `Quick open` workflow configuration checkbox to skip this menu and
+open repositories directly.
 
-See the Alfred documentation on [Workflow variables][wf-vars] for more information on how to configure workflow variables.
+This workflow has been tested with Alfred 5.7.3 [2320].
 
 ## Notes
 
@@ -120,7 +121,6 @@ All other code/media are released under the [MIT Licence][license].
 
 [alfred]: http://www.alfredapp.com/
 [alfred-workflow]: http://www.deanishe.net/alfred-workflow/
-[wf-vars]: https://www.alfredapp.com/help/workflows/advanced/variables/
 [license]: src/LICENSE.txt
 [releases]: https://github.com/HRXWEB/alfred-gitlab/releases
 [sample]: https://raw.github.com/lukewaite/alfred-gitlab/master/docs/sample.png
