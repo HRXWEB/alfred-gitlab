@@ -996,7 +996,7 @@ def test_workflow_exposes_glrefresh_keyword():
 def test_v4_workflow_metadata():
     workflow = load_plist()
 
-    assert workflow["version"] == "4.1.0"
+    assert workflow["version"] == "4.2.0"
     assert workflow["createdby"] == "HRXWEB"
     assert workflow["bundleid"] == "com.lukewaite.alfred-gitlab"
 

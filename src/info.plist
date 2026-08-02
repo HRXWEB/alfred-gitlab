@@ -947,9 +947,12 @@
 Commands
 
 * `glhostadd [name] &lt;api_url&gt; &lt;token&gt;` adds a host, or updates the host with that name.
+* `glhostdefault` opens a chooser for the default GitLab host.
 * `glhostlist` lists every configured host, its cached project count, and its latest refresh state.
 * `glhostremove &lt;name&gt;` removes the exact host name and its local state.
 * `glrefresh` refreshes every host immediately.
+* `gl my` opens the default host's personal-page menu first.
+* `gl my &lt;host-name&gt; &lt;page-filter&gt;` drills into a non-default host and optionally filters its personal pages.
 * `gl &lt;query&gt;` searches the combined projects from every configured host. Host names appear in result subtitles so matching projects remain distinguishable.
 
 The optional name in `glhostadd` is useful for a friendly label. Without it, a domain is named from its hostname:
@@ -964,7 +967,9 @@ The automatic name is `192.0.2.10:8080`.
 
 Refreshes are independent. If one host fails, other hosts still publish their new projects, the failed host keeps its previous cached projects, and the `glrefresh` notification reports refreshed and failed counts.
 
-Compatibility commands `glsetkey &lt;token&gt;` and `glseturl &lt;api_url&gt;` continue to configure the default host. GitLab.com remains the default API for a new installation.
+Compatibility commands `glsetkey &lt;token&gt;` and `glseturl &lt;api_url&gt;` continue to configure the default host. `glhostdefault` changes the host they use. GitLab.com remains the default API for a new installation.
+
+`gl my` shows these nine default-host page mappings: Profile (`/&lt;username&gt;`), Starred projects (`/dashboard/projects/starred`), Snippets (`/dashboard/snippets`), Merge requests (`/dashboard/merge_requests`), Projects (`/dashboard/projects`), Issues (`/dashboard/issues`), Preferences (`/-/profile/preferences`), Dashboard (`/`), and To-do list (`/dashboard/todos`). Select a non-default host to drill into the same host-specific page menu; add a page filter after its name to narrow the choices. Profile resolves the signed-in GitLab username.
 
 WARNING: Alfred Debugger output includes command input, including the token entered with `glhostadd` or `glsetkey`. Do not open or share debugger output while entering a token.
 
@@ -1195,7 +1200,7 @@ Tested with Alfred 5.7.3 [2320].</string>
 		<string>quick_open</string>
 	</array>
 	<key>version</key>
-	<string>4.1.0</string>
+	<string>4.2.0</string>
 	<key>webaddress</key>
 	<string>https://lukewaite.ca</string>
 </dict>

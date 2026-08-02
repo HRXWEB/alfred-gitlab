@@ -5,6 +5,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v4.2.0] (2026-08-02)
+* Add `glhostdefault` to select the default GitLab profile
+* Add default-first `gl my` navigation for personal GitLab pages
+* Add multi-host drill-down with GitLab-specific snippets, merge requests, and to-do mappings
+
 ## [v4.1.0] (2026-07-28)
 * Show the project page menu by default and expose `Quick open` as a workflow
   configuration checkbox
@@ -101,7 +106,8 @@ upgraded to the fork in the meantime has the ability to pull updates in the futu
 
 * Initial implementaiton of alfred-gitlab workflow
 
-[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.1.0...HEAD
+[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.2.0...HEAD
+[v4.2.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.1.0...v4.2.0
 [v4.1.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.0.0...v4.1.0
 [v4.0.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.1.0...v4.0.0
 [v3.1.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.0.1...v3.1.0

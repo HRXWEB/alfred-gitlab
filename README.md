@@ -34,16 +34,20 @@ The available commands are:
 
 ```text
 glhostadd [name] <api_url> <token>
+glhostdefault
 glhostlist
 glhostremove <name>
 glrefresh
+gl my
+gl my <host-name> <page-filter>
 gl <query>
 ```
 
-`glhostlist` shows configured profiles, cached project counts, and sanitized
-refresh status. `glhostremove` removes the exact named profile and its scoped
-credential/cache. `glrefresh` refreshes all profiles immediately and reports
-how many succeeded or failed.
+`glhostdefault` opens a chooser for the default GitLab profile. `glhostlist`
+shows configured profiles, cached project counts, and sanitized refresh status.
+`glhostremove` removes the exact named profile and its scoped credential/cache.
+`glrefresh` refreshes all profiles immediately and reports how many succeeded
+or failed.
 
 `gl <query>` searches the aggregate project cache across every configured
 host. Result subtitles include the source profile name, and project IDs from
@@ -69,6 +73,30 @@ downgrade to v3.1.0.
 The existing `glseturl <api_url>` and `glsetkey <token>` commands remain
 compatible. They update the default profile (or create it when necessary),
 while the `glhost*` commands manage additional profiles.
+
+`glhostdefault` changes the host used by these compatibility commands.
+
+### Personal GitLab pages
+
+`gl my` opens the default host's personal-page menu first. It has nine rows:
+
+| Page | GitLab path |
+| --- | --- |
+| Profile | `/<username>` |
+| Starred projects | `/dashboard/projects/starred` |
+| Snippets | `/dashboard/snippets` |
+| Merge requests | `/dashboard/merge_requests` |
+| Projects | `/dashboard/projects` |
+| Issues | `/dashboard/issues` |
+| Preferences | `/-/profile/preferences` |
+| Dashboard | `/` |
+| To-do list | `/dashboard/todos` |
+
+For another configured host, enter `gl my <host-name> <page-filter>`. Selecting
+a non-default host drills into the same menu for that host; use a page filter
+after its name to narrow the choices. The profile row resolves the signed-in
+username from GitLab, while the remaining mappings use GitLab's host-specific
+page paths above.
 
 ### Upgrading from v3.0.1
 
