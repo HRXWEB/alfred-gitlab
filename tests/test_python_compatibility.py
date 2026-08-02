@@ -13,6 +13,7 @@ V4_MODULES = (
     "host_registry_state.py",
     "host_services.py",
     "host_values.py",
+    "personal_pages.py",
     "project_search.py",
     "refresh_runtime.py",
     "search_refresh.py",
