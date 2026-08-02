@@ -635,6 +635,25 @@ def test_hostlist_cli_sends_alfred_feedback():
     assert workflow.feedback_count == 1
 
 
+def test_hostdefault_list_renders_feedback():
+    workflow = FakeWorkflow(["--hostdefault-list"])
+    gitlab.log = FakeLogger()
+
+    gitlab.main(workflow)
+
+    assert workflow.feedback_count == 1
+    assert workflow.items[0][1].startswith("Current default · ")
+
+
+def test_hostdefault_action_prints_selected_name(capsys):
+    workflow = FakeWorkflow(["--set-default-host", PROFILE_ID])
+    gitlab.log = FakeLogger()
+
+    gitlab.main(workflow)
+
+    assert capsys.readouterr().out == "Default host set to gitlab.example.com\n"
+
+
 def test_hostremove_deletes_exact_profile_token_and_payload_state(capsys):
     workflow = FakeWorkflow(["--hostremove", "company"])
     company = profile(
@@ -1020,6 +1039,29 @@ def test_hostlist_is_no_argument_script_filter():
     assert hostlist["config"]["argumenttype"] == 2
     assert hostlist["config"]["withspace"] is False
     assert hostlist["config"]["script"] == "python3 gitlab.py --hostlist"
+
+
+def test_hostdefault_workflow_connection():
+    workflow = load_plist()
+    objects_by_uid = {item["uid"]: item for item in workflow["objects"]}
+    chooser = next(
+        item
+        for item in workflow["objects"]
+        if item.get("config", {}).get("keyword") == "glhostdefault"
+    )
+
+    assert chooser["type"] == "alfred.workflow.input.scriptfilter"
+    assert chooser["config"]["script"] == "python3 gitlab.py --hostdefault-list"
+    action_uid = workflow["connections"][chooser["uid"]][0]["destinationuid"]
+    action = objects_by_uid[action_uid]
+    assert action["config"]["script"] == (
+        'python3 gitlab.py --set-default-host "{query}"'
+    )
+
+    notification_uid = workflow["connections"][action_uid][0]["destinationuid"]
+    notification = objects_by_uid[notification_uid]
+    assert notification["config"]["title"] == "Default GitLab Host Changed"
+    assert notification["config"]["text"] == "{query}"
 
 
 def test_refresh_notification_uses_summary_output():

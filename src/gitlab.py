@@ -5,7 +5,13 @@ from ipaddress import ip_address
 from urllib.parse import urlsplit, urlunsplit
 
 from cache_state import CacheState
-from host_commands import add_host, remove_host, render_host_list
+from host_commands import (
+    add_host,
+    remove_host,
+    render_default_host_list,
+    render_host_list,
+    set_default_host,
+)
 from host_values import InvalidApiUrlError, valid_api_url
 from hosts import (
     ensure_profiles,
@@ -72,8 +78,10 @@ def main(wf):
     parser.add_argument("--setkey", dest="apikey", nargs="?", default=None)
     parser.add_argument("--seturl", dest="apiurl", nargs="?", default=None)
     parser.add_argument("--hostadd")
+    parser.add_argument("--hostdefault-list", action="store_true")
     parser.add_argument("--hostlist", action="store_true")
     parser.add_argument("--hostremove")
+    parser.add_argument("--set-default-host")
     parser.add_argument("--refresh", action="store_true")
     parser.add_argument("query", nargs="?", default=None)
     # parse the script's arguments
@@ -109,6 +117,19 @@ def main(wf):
     if args.hostremove is not None:
         _ = ensure_profiles(wf, cache)
         print(remove_host(wf, cache, args.hostremove))
+        return 0
+
+    if args.hostdefault_list:
+        profiles = ensure_profiles(wf, cache)
+        default_profile = get_default_profile(wf)
+        assert default_profile is not None
+        render_default_host_list(wf, profiles, default_profile["id"])
+        wf.send_feedback()
+        return 0
+
+    if args.set_default_host is not None:
+        _ = ensure_profiles(wf, cache)
+        print(set_default_host(wf, args.set_default_host))
         return 0
 
     if args.hostlist:

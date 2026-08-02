@@ -237,6 +237,32 @@
 				<false/>
 			</dict>
 		</array>
+		<key>2A36CC8A-2C93-4152-9DDC-2AFB3A1F137B</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>DCC091AB-25B9-4E98-A1E6-C151956B25C8</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>HRXWEB</string>
@@ -821,6 +847,99 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>glhostdefault</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Loading GitLab hosts...</string>
+				<key>script</key>
+				<string>python3 gitlab.py --hostdefault-list</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string></string>
+				<key>title</key>
+				<string>Choose default GitLab host</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>2A36CC8A-2C93-4152-9DDC-2AFB3A1F137B</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>python3 gitlab.py --set-default-host "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>Default GitLab Host Changed</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>DCC091AB-25B9-4E98-A1E6-C151956B25C8</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string>Setup and Usage
@@ -1021,6 +1140,27 @@ Tested with Alfred 5.7.3 [2320].</string>
 			<real>510</real>
 			<key>ypos</key>
 			<real>1310</real>
+		</dict>
+		<key>2A36CC8A-2C93-4152-9DDC-2AFB3A1F137B</key>
+		<dict>
+			<key>xpos</key>
+			<real>70</real>
+			<key>ypos</key>
+			<real>1470</real>
+		</dict>
+		<key>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</key>
+		<dict>
+			<key>xpos</key>
+			<real>300</real>
+			<key>ypos</key>
+			<real>1470</real>
+		</dict>
+		<key>DCC091AB-25B9-4E98-A1E6-C151956B25C8</key>
+		<dict>
+			<key>xpos</key>
+			<real>510</real>
+			<key>ypos</key>
+			<real>1470</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
