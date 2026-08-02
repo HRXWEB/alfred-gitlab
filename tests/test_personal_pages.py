@@ -149,6 +149,17 @@ def test_derive_gitlab_roots_rejects_unexpected_api_path():
     ) is None
 
 
+@pytest.mark.parametrize(
+    "api_url",
+    [
+        "https://user:secret@example.invalid/api/v4/projects",
+        "ftp://example.invalid/api/v4/projects",
+    ],
+)
+def test_derive_gitlab_roots_rejects_unsafe_api_url(api_url):
+    assert personal_pages.derive_gitlab_roots(api_url) is None
+
+
 def test_personal_pages_follow_gitlab_navigation_order():
     assert personal_pages.PERSONAL_PAGES == (
         personal_pages.PersonalPage(
@@ -364,6 +375,79 @@ def test_render_my_pages_filters_multi_word_default_page():
     ]
 
 
+@pytest.mark.parametrize(
+    ("query", "title", "subtitle", "destination"),
+    [
+        (
+            "my issues ",
+            "my issues",
+            "first · View your issues",
+            "https://first.example/dashboard/issues",
+        ),
+        (
+            "my merge requests ",
+            "my merge requests",
+            "first · View your merge requests",
+            "https://first.example/dashboard/merge_requests",
+        ),
+    ],
+)
+def test_render_my_pages_trailing_page_filter_does_not_warn(
+    query,
+    title,
+    subtitle,
+    destination,
+):
+    workflow = FakeWorkflow()
+    first, company = configured_profiles()
+
+    personal_pages.render_my_pages(workflow, [first, company], first, query)
+
+    assert workflow.items == [
+        (title, subtitle, {"arg": destination, "valid": True})
+    ]
+
+
+def test_render_my_pages_trailing_host_prefix_remains_navigation_filter():
+    workflow = FakeWorkflow()
+    first, company = configured_profiles()
+
+    personal_pages.render_my_pages(workflow, [first, company], first, "my comp ")
+
+    assert workflow.items == [
+        (
+            "my company",
+            "Browse personal pages on company",
+            {"autocomplete": "my company ", "valid": False},
+        )
+    ]
+
+
+def test_render_my_pages_warns_when_removed_host_query_has_page_filter():
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+    cache_username(workflow, PROFILE_ID, "alice")
+
+    personal_pages.render_my_pages(workflow, [first], first, "my removed issues")
+
+    assert workflow.items[0] == (
+        "GitLab host is no longer configured",
+        None,
+        {"valid": False},
+    )
+    assert [item[0] for item in workflow.items[1:]] == [
+        "my profile",
+        "my starred projects",
+        "my snippets",
+        "my merge requests",
+        "my projects",
+        "my issues",
+        "my preferences",
+        "my dashboard",
+        "my to-do list",
+    ]
+
+
 def test_render_my_pages_filters_non_default_host_navigation():
     workflow = FakeWorkflow()
     first, company = configured_profiles()
@@ -444,6 +528,28 @@ def test_render_my_pages_marks_unsupported_api_roots_invalid_and_sanitized():
     )
 
     personal_pages.render_my_pages(workflow, [unsupported], unsupported, "my")
+
+    assert len(workflow.items) == 9
+    assert {item[1] for item in workflow.items} == {
+        "broken · GitLab API URL is unsupported"
+    }
+    assert all(item[2] == {"valid": False} for item in workflow.items)
+    assert all(variables == {} for variables in workflow.item_variables)
+    assert "secret" not in repr(workflow.items)
+
+
+@pytest.mark.parametrize(
+    "api_url",
+    [
+        "https://user:secret@example.invalid/api/v4/projects",
+        "ftp://example.invalid/api/v4/projects",
+    ],
+)
+def test_render_my_pages_marks_unsafe_api_roots_invalid_and_sanitized(api_url):
+    workflow = FakeWorkflow()
+    unsafe = named_profile(PROFILE_ID, "broken", api_url)
+
+    personal_pages.render_my_pages(workflow, [unsafe], unsafe, "my")
 
     assert len(workflow.items) == 9
     assert {item[1] for item in workflow.items} == {

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlunsplit
 
 import mureq
+from host_values import valid_api_url
 from hosts import token_account
 from workflow import PasswordNotFound
 
@@ -108,11 +109,18 @@ def render_my_pages(workflow, profiles, default_profile, query: str) -> None:
         ),
         None,
     )
+    is_page_filter = _matches_page_filter(parts[1:])
+    is_host_prefix = requested_host is not None and any(
+        profile["name"].casefold().startswith(requested_host.casefold())
+        for profile in profiles
+    )
 
     fully_selected_host_missing = (
         requested_host is not None
         and selected_profile is None
-        and query[-1:].isspace()
+        and not is_page_filter
+        and not is_host_prefix
+        and (len(parts) > 2 or query[-1:].isspace())
     )
     if fully_selected_host_missing:
         workflow.add_item(
@@ -157,6 +165,25 @@ def render_my_pages(workflow, profiles, default_profile, query: str) -> None:
             autocomplete="my " + name + " ",
             valid=False,
         )
+
+
+def _matches_page_filter(parts) -> bool:
+    query_terms = " ".join(parts).casefold().replace("-", " ").split()
+    if not query_terms:
+        return False
+    for page in PERSONAL_PAGES:
+        page_terms = (
+            " ".join((page.key, page.title, page.subtitle))
+            .casefold()
+            .replace("-", " ")
+            .split()
+        )
+        if all(
+            any(page_term.startswith(query_term) for page_term in page_terms)
+            for query_term in query_terms
+        ):
+            return True
+    return False
 
 
 def _filter_pages(workflow, page_filter: str):
@@ -207,12 +234,9 @@ def _render_page_rows(workflow, profile, pages) -> None:
 
 
 def derive_gitlab_roots(api_url: str) -> GitLabRoots | None:
-    try:
-        parsed = urlsplit(api_url)
-    except (TypeError, ValueError):
-        return None
+    parsed = valid_api_url(api_url)
     suffix = "/api/v4/projects"
-    if not parsed.scheme or not parsed.netloc or not parsed.path.endswith(suffix):
+    if parsed is None or not parsed.path.endswith(suffix):
         return None
 
     web_path = parsed.path[: -len(suffix)]
