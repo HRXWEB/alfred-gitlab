@@ -13,6 +13,15 @@ from workflow import PasswordNotFound
 
 
 PROFILE_ID = "a" * 32
+COMPANY_PROFILE_ID = "b" * 32
+
+
+class FakeItem:
+    def __init__(self, variables):
+        self.variables = variables
+
+    def setvar(self, name, value):
+        self.variables[name] = value
 
 
 class FakeWorkflow:
@@ -22,6 +31,8 @@ class FakeWorkflow:
         self.cache_reads = []
         self.cache_writes = []
         self.items = []
+        self.item_variables = []
+        self.filter_calls = []
 
     def get_password(self, account):
         try:
@@ -40,6 +51,14 @@ class FakeWorkflow:
 
     def add_item(self, title, subtitle=None, **kwargs):
         self.items.append((title, subtitle, kwargs))
+        variables = {}
+        self.item_variables.append(variables)
+        return FakeItem(variables)
+
+    def filter(self, query, items, key, min_score):
+        self.filter_calls.append((query, min_score))
+        lowered = query.lower()
+        return [item for item in items if lowered in key(item).lower()]
 
 
 class FakeResponse:
@@ -64,6 +83,33 @@ def profile():
         "api_url": "https://gitlab.example/api/v4/projects",
         "name_source": NameSource.CUSTOM,
     }
+
+
+def named_profile(profile_id, name, api_url):
+    return {
+        "id": profile_id,
+        "name": name,
+        "api_url": api_url,
+        "name_source": NameSource.CUSTOM,
+    }
+
+
+def configured_profiles():
+    first = named_profile(
+        PROFILE_ID,
+        "first",
+        "https://first.example/api/v4/projects",
+    )
+    company = named_profile(
+        COMPANY_PROFILE_ID,
+        "company",
+        "https://company.example/api/v4/projects",
+    )
+    return first, company
+
+
+def cache_username(workflow, profile_id, username):
+    workflow.cached_values[personal_pages.identity_cache_key(profile_id)] = username
 
 
 @pytest.mark.parametrize(
@@ -228,3 +274,206 @@ def test_resolve_username_sanitizes_missing_token(capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
+
+
+def test_render_my_pages_lists_default_pages_before_other_hosts():
+    workflow = FakeWorkflow()
+    first, company = configured_profiles()
+    cache_username(workflow, PROFILE_ID, "alice")
+
+    personal_pages.render_my_pages(workflow, [first, company], first, "my")
+
+    assert len(workflow.items) == 10
+    assert workflow.items[0][0:2] == (
+        "my profile",
+        "first · View your public user profile",
+    )
+    assert workflow.items[0][2]["arg"] == "https://first.example/alice"
+    assert workflow.items[0][2]["valid"] is True
+    assert workflow.item_variables[0] == {"quick_open": "1"}
+    assert workflow.items[9] == (
+        "my company",
+        "Browse personal pages on company",
+        {"autocomplete": "my company ", "valid": False},
+    )
+    assert workflow.item_variables[9] == {}
+
+
+def test_render_my_pages_selects_exact_host_without_navigation_rows():
+    workflow = FakeWorkflow()
+    first, company = configured_profiles()
+    cache_username(workflow, COMPANY_PROFILE_ID, "bob")
+
+    personal_pages.render_my_pages(
+        workflow,
+        [first, company],
+        first,
+        "my company ",
+    )
+
+    assert len(workflow.items) == 9
+    assert workflow.items[0][0:2] == (
+        "my profile",
+        "company · View your public user profile",
+    )
+    assert workflow.items[0][2] == {
+        "arg": "https://company.example/bob",
+        "valid": True,
+    }
+    assert all(variables == {"quick_open": "1"} for variables in workflow.item_variables)
+
+
+def test_render_my_pages_filters_selected_host_pages():
+    workflow = FakeWorkflow()
+    first, company = configured_profiles()
+
+    personal_pages.render_my_pages(
+        workflow,
+        [first, company],
+        first,
+        "my company issues",
+    )
+
+    assert workflow.items == [
+        (
+            "my issues",
+            "company · View your issues",
+            {"arg": "https://company.example/dashboard/issues", "valid": True},
+        )
+    ]
+    assert workflow.item_variables == [{"quick_open": "1"}]
+
+
+def test_render_my_pages_filters_multi_word_default_page():
+    workflow = FakeWorkflow()
+    first, company = configured_profiles()
+
+    personal_pages.render_my_pages(
+        workflow,
+        [first, company],
+        first,
+        "my merge requests",
+    )
+
+    assert workflow.items == [
+        (
+            "my merge requests",
+            "first · View your merge requests",
+            {"arg": "https://first.example/dashboard/merge_requests", "valid": True},
+        )
+    ]
+
+
+def test_render_my_pages_filters_non_default_host_navigation():
+    workflow = FakeWorkflow()
+    first, company = configured_profiles()
+
+    personal_pages.render_my_pages(workflow, [first, company], first, "my comp")
+
+    assert workflow.items == [
+        (
+            "my company",
+            "Browse personal pages on company",
+            {"autocomplete": "my company ", "valid": False},
+        )
+    ]
+
+
+def test_render_my_pages_omits_host_navigation_for_single_host():
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+    cache_username(workflow, PROFILE_ID, "alice")
+
+    personal_pages.render_my_pages(workflow, [first], first, "my")
+
+    assert len(workflow.items) == 9
+    assert all(item[0].startswith("my ") for item in workflow.items)
+    assert all("autocomplete" not in item[2] for item in workflow.items)
+
+
+def test_render_my_pages_preserves_installation_subpath_for_every_destination():
+    workflow = FakeWorkflow()
+    subpath = named_profile(
+        PROFILE_ID,
+        "subpath",
+        "https://gitlab.example/gitlab/api/v4/projects",
+    )
+    cache_username(workflow, PROFILE_ID, "alice")
+
+    personal_pages.render_my_pages(workflow, [subpath], subpath, "my")
+
+    assert [item[2]["arg"] for item in workflow.items] == [
+        "https://gitlab.example/gitlab/alice",
+        "https://gitlab.example/gitlab/dashboard/projects/starred",
+        "https://gitlab.example/gitlab/dashboard/snippets",
+        "https://gitlab.example/gitlab/dashboard/merge_requests",
+        "https://gitlab.example/gitlab/dashboard/projects",
+        "https://gitlab.example/gitlab/dashboard/issues",
+        "https://gitlab.example/gitlab/-/profile/preferences",
+        "https://gitlab.example/gitlab/",
+        "https://gitlab.example/gitlab/dashboard/todos",
+    ]
+
+
+def test_render_my_pages_keeps_non_profile_pages_when_identity_is_unavailable():
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+
+    personal_pages.render_my_pages(workflow, [first], first, "my")
+
+    assert workflow.items[0] == (
+        "my profile",
+        "first · Profile unavailable; try again later",
+        {"valid": False},
+    )
+    assert workflow.item_variables[0] == {}
+    assert len(workflow.items) == 9
+    assert all(item[2]["valid"] is True for item in workflow.items[1:])
+    assert all(
+        variables == {"quick_open": "1"}
+        for variables in workflow.item_variables[1:]
+    )
+
+
+def test_render_my_pages_marks_unsupported_api_roots_invalid_and_sanitized():
+    workflow = FakeWorkflow()
+    unsupported = named_profile(
+        PROFILE_ID,
+        "broken",
+        "https://user:secret@example.invalid/unexpected/path",
+    )
+
+    personal_pages.render_my_pages(workflow, [unsupported], unsupported, "my")
+
+    assert len(workflow.items) == 9
+    assert {item[1] for item in workflow.items} == {
+        "broken · GitLab API URL is unsupported"
+    }
+    assert all(item[2] == {"valid": False} for item in workflow.items)
+    assert all(variables == {} for variables in workflow.item_variables)
+    assert "secret" not in repr(workflow.items)
+
+
+def test_render_my_pages_warns_and_falls_back_when_selected_host_disappears():
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+    cache_username(workflow, PROFILE_ID, "alice")
+
+    personal_pages.render_my_pages(workflow, [first], first, "my removed ")
+
+    assert workflow.items[0] == (
+        "GitLab host is no longer configured",
+        None,
+        {"valid": False},
+    )
+    assert [item[0] for item in workflow.items[1:]] == [
+        "my profile",
+        "my starred projects",
+        "my snippets",
+        "my merge requests",
+        "my projects",
+        "my issues",
+        "my preferences",
+        "my dashboard",
+        "my to-do list",
+    ]

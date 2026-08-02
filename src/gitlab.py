@@ -14,6 +14,7 @@ from hosts import (
     set_default_url,
 )
 from project_search import aggregate_projects, search_for_project
+from personal_pages import is_my_query, render_my_pages
 from workflow import ICON_INFO, ICON_WARNING, Workflow3
 
 log = None
@@ -151,6 +152,11 @@ def main(wf):
     ####################################################################
 
     query = args.query
+
+    if is_my_query(query):
+        render_my_pages(wf, profiles, get_default_profile(wf), query or "")
+        wf.send_feedback()
+        return 0
 
     projects = aggregate_projects(wf, profiles, cache)
 

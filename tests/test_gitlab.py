@@ -129,6 +129,62 @@ def profile(profile_id, name, api_url):
     }
 
 
+@pytest.mark.parametrize("query", ["my", "my ", "my issues", "my company issues"])
+def test_my_query_dispatches_without_project_search(query, monkeypatch):
+    workflow = FakeWorkflow([query])
+    rendered = []
+    monkeypatch.setattr(
+        gitlab,
+        "render_my_pages",
+        lambda *args: rendered.append(args),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        gitlab,
+        "aggregate_projects",
+        lambda *args: pytest.fail("project search ran"),
+    )
+    gitlab.log = FakeLogger()
+
+    result = gitlab.main(workflow)
+
+    assert result == 0
+    assert len(rendered) == 1
+    assert rendered[0][0] is workflow
+    assert rendered[0][3] == query
+    assert workflow.feedback_count == 1
+
+
+@pytest.mark.parametrize("query", ["myproject", "my-company", "mystery"])
+def test_my_prefix_remains_project_search(query, monkeypatch):
+    workflow = FakeWorkflow([query])
+    aggregate_calls = []
+    project = {
+        "id": 7,
+        "name_with_namespace": "Found / " + query,
+        "path_with_namespace": "found/" + query,
+        "web_url": "https://gitlab.example.com/found/" + query,
+        "_host_name": "gitlab.example.com",
+        "_api_url": "https://gitlab.example.com/api/v4/projects",
+        "_alfred_uid": PROFILE_ID + ":7",
+    }
+
+    def aggregate(workflow_arg, profiles_arg, cache_arg):
+        aggregate_calls.append((workflow_arg, profiles_arg, cache_arg))
+        return [project]
+
+    monkeypatch.setattr(gitlab, "aggregate_projects", aggregate)
+    gitlab.log = FakeLogger()
+
+    gitlab.main(workflow)
+
+    assert len(aggregate_calls) == 1
+    assert aggregate_calls[0][0] is workflow
+    assert [item["id"] for item in aggregate_calls[0][1]] == [PROFILE_ID]
+    assert workflow.filter_calls == [(query, 20)]
+    assert [item[0] for item in workflow.items] == ["Found / " + query]
+
+
 def test_aggregate_projects_preserves_duplicate_project_ids_without_mutation():
     workflow = FakeWorkflow([])
     company = profile(
