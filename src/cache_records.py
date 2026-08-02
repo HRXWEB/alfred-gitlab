@@ -67,6 +67,10 @@ def status_key(profile_id: str) -> str:
     return f"status-{validate_profile_id(profile_id)}"
 
 
+def identity_cache_key(profile_id: str) -> str:
+    return f"gitlab-username-{validate_profile_id(profile_id)}"
+
+
 def sanitized_status(
     status: Mapping[str, JSONValue],
 ) -> StatusRecord:

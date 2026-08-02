@@ -44,6 +44,8 @@ class HostCache(Protocol):
 
     def invalidate_projects(self, profile_id: str) -> None: ...
 
+    def invalidate_identity(self, profile_id: str) -> None: ...
+
     def clear_profile_state(self, profile_id: str) -> None: ...
 
 
@@ -141,8 +143,8 @@ def set_default_token(
             workflow,
             RegistryCallbacks(
                 invalidate=lambda _workflow, profile_id: (
-                    cache.invalidate_projects(profile_id)
-                )
+                    _invalidate_profile_caches(cache, profile_id)
+                ),
             ),
         )
         return registry.add_or_update(
@@ -153,7 +155,7 @@ def set_default_token(
             )
         ).to_record()
     workflow.save_password(token_account(selected["id"]), token)
-    cache.invalidate_projects(selected["id"])
+    _invalidate_profile_caches(cache, selected["id"])
     return selected
 
 
@@ -193,8 +195,13 @@ def set_default_url(
             updated,
             _selected_default_id(workflow, updated),
         )
-    cache.invalidate_projects(profile.id)
+    _invalidate_profile_caches(cache, profile.id)
     return profile.to_record()
+
+
+def _invalidate_profile_caches(cache: HostCache, profile_id: str) -> None:
+    cache.invalidate_projects(profile_id)
+    cache.invalidate_identity(profile_id)
 
 
 def _updated_default_profile(

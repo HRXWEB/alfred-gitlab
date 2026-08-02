@@ -237,6 +237,32 @@
 				<false/>
 			</dict>
 		</array>
+		<key>2A36CC8A-2C93-4152-9DDC-2AFB3A1F137B</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>DCC091AB-25B9-4E98-A1E6-C151956B25C8</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>HRXWEB</string>
@@ -260,7 +286,7 @@
 				<key>spaces</key>
 				<string></string>
 				<key>url</key>
-				<string>{var:repo}/{var:subfolder}</string>
+				<string>{var:repo}{var:url_separator}{var:subfolder}</string>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.action.openurl</string>
@@ -821,6 +847,99 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>glhostdefault</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Loading GitLab hosts...</string>
+				<key>script</key>
+				<string>python3 gitlab.py --hostdefault-list</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string></string>
+				<key>title</key>
+				<string>Choose default GitLab host</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>2A36CC8A-2C93-4152-9DDC-2AFB3A1F137B</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>python3 gitlab.py --set-default-host "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>Default GitLab Host Changed</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>DCC091AB-25B9-4E98-A1E6-C151956B25C8</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string>Setup and Usage
@@ -828,9 +947,12 @@
 Commands
 
 * `glhostadd [name] &lt;api_url&gt; &lt;token&gt;` adds a host, or updates the host with that name.
+* `glhostdefault` opens a chooser for the default GitLab host.
 * `glhostlist` lists every configured host, its cached project count, and its latest refresh state.
 * `glhostremove &lt;name&gt;` removes the exact host name and its local state.
 * `glrefresh` refreshes every host immediately.
+* `gl my` opens the default host's personal-page menu first.
+* `gl my &lt;host-name&gt; &lt;page-filter&gt;` drills into a non-default host and optionally filters its personal pages.
 * `gl &lt;query&gt;` searches the combined projects from every configured host. Host names appear in result subtitles so matching projects remain distinguishable.
 
 The optional name in `glhostadd` is useful for a friendly label. Without it, a domain is named from its hostname:
@@ -845,7 +967,9 @@ The automatic name is `192.0.2.10:8080`.
 
 Refreshes are independent. If one host fails, other hosts still publish their new projects, the failed host keeps its previous cached projects, and the `glrefresh` notification reports refreshed and failed counts.
 
-Compatibility commands `glsetkey &lt;token&gt;` and `glseturl &lt;api_url&gt;` continue to configure the default host. GitLab.com remains the default API for a new installation.
+Compatibility commands `glsetkey &lt;token&gt;` and `glseturl &lt;api_url&gt;` continue to configure the default host. `glhostdefault` changes the host they use. GitLab.com remains the default API for a new installation.
+
+`gl my` shows these nine default-host page mappings: Profile (`/&lt;username&gt;`), Starred projects (`/dashboard/projects/starred`), Snippets (`/dashboard/snippets`), Merge requests (`/dashboard/merge_requests`), Projects (`/dashboard/projects`), Issues (`/dashboard/issues`), Preferences (`/-/profile/preferences`), Dashboard (`/`), and To-do list (`/dashboard/todos`). Select a non-default host to drill into the same host-specific page menu; add a page filter after its name to narrow the choices. Profile resolves the signed-in GitLab username.
 
 WARNING: Alfred Debugger output includes command input, including the token entered with `glhostadd` or `glsetkey`. Do not open or share debugger output while entering a token.
 
@@ -1022,6 +1146,27 @@ Tested with Alfred 5.7.3 [2320].</string>
 			<key>ypos</key>
 			<real>1310</real>
 		</dict>
+		<key>2A36CC8A-2C93-4152-9DDC-2AFB3A1F137B</key>
+		<dict>
+			<key>xpos</key>
+			<real>70</real>
+			<key>ypos</key>
+			<real>1470</real>
+		</dict>
+		<key>AA039462-C1DD-4DB7-ADBA-5472D4D7BD5C</key>
+		<dict>
+			<key>xpos</key>
+			<real>300</real>
+			<key>ypos</key>
+			<real>1470</real>
+		</dict>
+		<key>DCC091AB-25B9-4E98-A1E6-C151956B25C8</key>
+		<dict>
+			<key>xpos</key>
+			<real>510</real>
+			<key>ypos</key>
+			<real>1470</real>
+		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
 	<array>
@@ -1049,13 +1194,16 @@ Tested with Alfred 5.7.3 [2320].</string>
 	<dict>
 		<key>quick_open</key>
 		<string>0</string>
+		<key>url_separator</key>
+		<string>/</string>
 	</dict>
 	<key>variablesdontexport</key>
 	<array>
 		<string>quick_open</string>
+		<string>url_separator</string>
 	</array>
 	<key>version</key>
-	<string>4.1.0</string>
+	<string>4.2.0</string>
 	<key>webaddress</key>
 	<string>https://lukewaite.ca</string>
 </dict>

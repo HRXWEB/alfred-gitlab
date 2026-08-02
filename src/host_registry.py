@@ -51,6 +51,14 @@ class UnknownHostProfileError(ValueError):
 
 
 @dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
+class UnknownHostProfileIdError(ValueError):
+    profile_id: str
+
+    def __str__(self) -> str:
+        return "Unknown GitLab host profile ID"
+
+
+@dataclass(frozen=True)  #noqa: SLOTS_OK - Python 3.9 workflow runtime
 class HostRegistry:
     workflow: WorkflowLike
     callbacks: RegistryCallbacks = RegistryCallbacks()
@@ -60,6 +68,23 @@ class HostRegistry:
             HostProfile.from_record(record)
             for record in get_profiles(self.workflow)
         )
+
+    def set_default(self, profile_id: str) -> HostProfile:
+        profiles = self.profiles()
+        selected = next(
+            (profile for profile in profiles if profile.id == profile_id), None
+        )
+        if selected is None:
+            raise UnknownHostProfileIdError(profile_id)
+        snapshot = snapshot_registry_settings(
+            self.workflow, [profile.to_record() for profile in profiles]
+        )
+        try:
+            _save_profiles(self.workflow, profiles, selected.id)
+        except (OSError, AcquisitionError, KeychainError):
+            _ = restore_registry_settings(self.workflow, snapshot)
+            raise
+        return selected
 
     def add_or_update(self, draft: ProfileDraft) -> HostProfile:
         parsed = valid_api_url(draft.api_url)
@@ -240,6 +265,13 @@ def add_or_update_profile(
     draft: ProfileDraft,
 ) -> ProfileRecord:
     return registry.add_or_update(draft).to_record()
+
+
+def set_default_profile(
+    registry: HostRegistry,
+    profile_id: str,
+) -> ProfileRecord:
+    return registry.set_default(profile_id).to_record()
 
 
 def remove_profile(registry: HostRegistry, name: str) -> ProfileRecord:

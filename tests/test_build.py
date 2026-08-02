@@ -1,4 +1,5 @@
 from pathlib import Path
+import plistlib
 import subprocess
 import zipfile
 
@@ -21,3 +22,5 @@ def test_build_is_deterministic_and_uses_fixed_metadata(tmp_path):
             item.date_time == (1980, 1, 1, 0, 0, 0)
             for item in archive.infolist()
         )
+        assert "personal_pages.py" in archive.namelist()
+        assert plistlib.loads(archive.read("info.plist"))["version"] == "4.2.0"
