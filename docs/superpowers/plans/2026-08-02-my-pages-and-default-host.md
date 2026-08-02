@@ -16,7 +16,7 @@
 - Never expose tokens, API response bodies, or internal exception details in Alfred feedback or new logs.
 - Keep all new runtime source compatible with the project's Python 3.9 checks and add no dependency.
 - Use the GitLab terms Profile, Starred projects, Snippets, Merge requests, Projects, Issues, Preferences, Dashboard, and To-do list in that order.
-- Publish only `v4.2.0` to `HRXWEB/alfred-gitlab`, and only if its tag and GitHub Release do not already exist.
+- Publish only `v4.2.0` to `HRXWEB/alfred-gitlab`, and only after the reviewed feature branch is merged through a GitHub PR and the tag and GitHub Release are confirmed not to exist.
 
 ## File Structure
 
@@ -483,7 +483,7 @@ git commit -m "feat(hosts): add glhostdefault workflow command"
 
 ---
 
-### Task 5: Documentation, Version, Build, and `v4.2.0` Release
+### Task 5: Documentation, Version, and Release Artifact
 
 **Files:**
 - Modify: `README.md`
@@ -495,7 +495,7 @@ git commit -m "feat(hosts): add glhostdefault workflow command"
 
 **Interfaces:**
 - Consumes: all completed runtime behavior and `scripts/build.sh`.
-- Produces: documented `v4.2.0`, a verified deterministic workflow archive, Git tag `v4.2.0`, and a GitHub Release containing `GitLab.alfredworkflow`.
+- Produces: documented `v4.2.0` and a verified deterministic workflow archive ready for review and release.
 
 - [ ] **Step 1: Write release metadata and archive-content tests**
 
@@ -581,7 +581,7 @@ git add GitLab.alfredworkflow
 git commit -m "build: package v4.2.0 workflow"
 ```
 
-- [ ] **Step 8: Re-run final verification on the exact release commit**
+- [ ] **Step 8: Re-run final verification on the exact candidate commit**
 
 Run:
 
@@ -590,32 +590,30 @@ python3 -m pytest -q
 git status --short
 git log -1 --oneline
 git remote get-url origin
-git ls-remote --tags origin refs/tags/v4.2.0
-gh release view v4.2.0 --repo HRXWEB/alfred-gitlab
 ```
 
 Expected: tests PASS, worktree clean, origin resolves to
-`HRXWEB/alfred-gitlab`, and both tag/release lookups report that `v4.2.0` does
-not exist. If either exists, stop without overwriting it.
+`HRXWEB/alfred-gitlab`, and the candidate commit contains the complete source,
+documentation, metadata, tests, and archive. Publishing happens only after the
+whole-branch review and PR merge described below.
 
-- [ ] **Step 9: Push, tag, and publish the release**
+## Post-Implementation Integration and Release
 
-```bash
-git push origin master
-git tag -a v4.2.0 -m "v4.2.0"
-git push origin v4.2.0
-gh release create v4.2.0 GitLab.alfredworkflow \
-  --repo HRXWEB/alfred-gitlab \
-  --title "v4.2.0" \
-  --notes-from-tag
-```
+After all five tasks pass their scoped reviews, run the SDD whole-branch review
+and resolve its findings. Then use the repository's PR workflow:
 
-Then verify with:
-
-```bash
-gh release view v4.2.0 --repo HRXWEB/alfred-gitlab \
-  --json tagName,name,isDraft,isPrerelease,assets,url
-```
-
-Expected: a non-draft, non-prerelease `v4.2.0` release whose assets include
-`GitLab.alfredworkflow`.
+1. Push `feat/my-pages-default-host` to `origin`.
+2. Open a GitHub PR targeting `master` with the verified test/build evidence.
+3. Confirm required checks pass and merge the PR; do not push the feature
+   branch directly to `master`.
+4. Fetch the merged `origin/master` and verify the PR merge commit contains
+   `GitLab.alfredworkflow` version `4.2.0`.
+5. Confirm `refs/tags/v4.2.0` and the GitHub Release do not already exist.
+6. Create annotated tag `v4.2.0` on the merged `origin/master` commit and push
+   that tag.
+7. Create a non-draft, non-prerelease GitHub Release with explicit notes
+   summarizing `glhostdefault`, default-first `gl my`, non-default host
+   drill-down, and GitLab-specific page mappings. Attach the reviewed
+   `GitLab.alfredworkflow` artifact from the merged commit.
+8. Verify the published release points at `v4.2.0` and lists
+   `GitLab.alfredworkflow` as an asset.
