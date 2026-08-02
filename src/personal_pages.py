@@ -5,9 +5,10 @@ from typing import Final
 from urllib.parse import urlunsplit
 
 import mureq
+from cache_records import CACHE_ERRORS, identity_cache_key
 from host_values import valid_api_url
 from hosts import token_account
-from workflow import PasswordNotFound
+from workflow import KeychainError
 
 
 IDENTITY_CACHE_AGE: Final = 86400
@@ -231,6 +232,7 @@ def _render_page_rows(workflow, profile, pages) -> None:
             valid=True,
         )
         item.setvar("quick_open", "1")
+        item.setvar("url_separator", "")
 
 
 def derive_gitlab_roots(api_url: str) -> GitLabRoots | None:
@@ -247,18 +249,24 @@ def derive_gitlab_roots(api_url: str) -> GitLabRoots | None:
     )
 
 
-def identity_cache_key(profile_id: str) -> str:
-    return "gitlab-username-" + profile_id
-
-
 def resolve_username(workflow, profile, roots: GitLabRoots) -> str | None:
     try:
         profile_id = profile["id"]
         cache_key = identity_cache_key(profile_id)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    try:
         cached = workflow.cached_data(cache_key, None, max_age=IDENTITY_CACHE_AGE)
+    except CACHE_ERRORS:
+        _discard_identity_cache(workflow, cache_key)
+    except OSError:
+        pass
+    else:
         if isinstance(cached, str) and cached:
             return cached
 
+    try:
         token = workflow.get_password(token_account(profile_id))
         response = mureq.get(
             roots.api_root.rstrip("/") + "/user",
@@ -268,14 +276,25 @@ def resolve_username(workflow, profile, roots: GitLabRoots) -> str | None:
         username = response.json()["username"]
         if not isinstance(username, str) or not username:
             return None
-        workflow.cache_data(cache_key, username)
-        return username
     except (
-        PasswordNotFound,
+        KeychainError,
         mureq.HTTPException,
         OSError,
-        ValueError,
         TypeError,
         KeyError,
+        *CACHE_ERRORS,
     ):
         return None
+
+    try:
+        workflow.cache_data(cache_key, username)
+    except (OSError, *CACHE_ERRORS):
+        pass
+    return username
+
+
+def _discard_identity_cache(workflow, cache_key: str) -> None:
+    try:
+        workflow.cache_data(cache_key, None)
+    except (OSError, *CACHE_ERRORS):
+        pass

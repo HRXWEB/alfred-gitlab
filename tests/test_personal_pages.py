@@ -1,3 +1,6 @@
+import pickle
+import plistlib
+import re
 import sys
 from pathlib import Path
 
@@ -9,7 +12,7 @@ sys.path.insert(0, str(SRC_DIR))
 import mureq
 import personal_pages
 from host_values import NameSource
-from workflow import PasswordNotFound
+from workflow import KeychainError, PasswordNotFound
 
 
 PROFILE_ID = "a" * 32
@@ -110,6 +113,83 @@ def configured_profiles():
 
 def cache_username(workflow, profile_id, username):
     workflow.cached_values[personal_pages.identity_cache_key(profile_id)] = username
+
+
+def _expand_graph_template(template, query, variables):
+    expanded = template.replace("{query}", query)
+    return re.sub(
+        r"\{var:([^}]+)\}",
+        lambda match: variables.get(match.group(1), ""),
+        expanded,
+    )
+
+
+def _apply_argument_utility(argument, query, variables):
+    current = dict(variables)
+    variables.update(
+        {
+            name: _expand_graph_template(value, query, current)
+            for name, value in argument["config"]["variables"].items()
+        }
+    )
+
+
+def _resolve_quick_open_graph(query, item_variables):
+    with (SRC_DIR / "info.plist").open("rb") as plist_file:
+        workflow = plistlib.load(plist_file)
+    objects = {item["uid"]: item for item in workflow["objects"]}
+    script_filter = next(
+        item
+        for item in workflow["objects"]
+        if item.get("config", {}).get("keyword") == "gl"
+    )
+    branch_filters = [
+        objects[edge["destinationuid"]]
+        for edge in workflow["connections"][script_filter["uid"]]
+    ]
+    quick_filter = next(
+        item
+        for item in branch_filters
+        if item["config"]["matchmode"] == 0
+        and item["config"]["matchstring"] == "1"
+    )
+    argument = objects[
+        workflow["connections"][quick_filter["uid"]][0]["destinationuid"]
+    ]
+    open_url = objects[
+        workflow["connections"][argument["uid"]][0]["destinationuid"]
+    ]
+    variables = dict(workflow["variables"])
+    variables.update(item_variables)
+    _apply_argument_utility(argument, query, variables)
+    return _expand_graph_template(open_url["config"]["url"], query, variables)
+
+
+def _resolve_project_subpage_graph(repository_url, subpage):
+    with (SRC_DIR / "info.plist").open("rb") as plist_file:
+        workflow = plistlib.load(plist_file)
+    objects = {item["uid"]: item for item in workflow["objects"]}
+    list_filter = next(
+        item
+        for item in workflow["objects"]
+        if item["type"] == "alfred.workflow.input.listfilter"
+    )
+    subpage_argument = objects[
+        workflow["connections"][list_filter["uid"]][0]["destinationuid"]
+    ]
+    open_url = objects[
+        workflow["connections"][subpage_argument["uid"]][0]["destinationuid"]
+    ]
+    repository_argument = next(
+        item
+        for item in workflow["objects"]
+        if item["type"] == "alfred.workflow.utility.argument"
+        and item["config"].get("variables") == {"repo": "{query}"}
+    )
+    variables = dict(workflow["variables"])
+    _apply_argument_utility(repository_argument, repository_url, variables)
+    _apply_argument_utility(subpage_argument, subpage, variables)
+    return _expand_graph_template(open_url["config"]["url"], subpage, variables)
 
 
 @pytest.mark.parametrize(
@@ -287,6 +367,91 @@ def test_resolve_username_sanitizes_missing_token(capsys):
     assert captured.err == ""
 
 
+def test_render_my_pages_keeps_other_pages_when_keychain_access_fails(capsys):
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+    workflow.get_password = lambda _account: (_ for _ in ()).throw(
+        KeychainError("credential detail")
+    )
+
+    personal_pages.render_my_pages(workflow, [first], first, "my")
+
+    assert workflow.items[0] == (
+        "my profile",
+        "first · Profile unavailable; try again later",
+        {"valid": False},
+    )
+    assert len(workflow.items) == 9
+    assert all(item[2]["valid"] is True for item in workflow.items[1:])
+    assert "credential detail" not in repr(workflow.items)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize(
+    "cache_error",
+    [
+        pickle.UnpicklingError("corrupt identity cache"),
+        EOFError("truncated identity cache"),
+    ],
+    ids=["unpickling_error", "eof_error"],
+)
+def test_render_my_pages_discards_corrupt_identity_cache_and_refreshes_username(
+    cache_error,
+    monkeypatch,
+):
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+    workflow.passwords["gitlab_api_key:" + PROFILE_ID] = "secret-token"
+    workflow.cached_data = lambda *args, **kwargs: (_ for _ in ()).throw(
+        cache_error
+    )
+    monkeypatch.setattr(
+        mureq,
+        "get",
+        lambda *args, **kwargs: FakeResponse({"username": "alice"}),
+    )
+
+    personal_pages.render_my_pages(workflow, [first], first, "my")
+
+    assert workflow.items[0][2] == {
+        "arg": "https://first.example/alice",
+        "valid": True,
+    }
+    assert len(workflow.items) == 9
+    assert all(item[2]["valid"] is True for item in workflow.items)
+    assert workflow.cache_writes == [
+        (personal_pages.identity_cache_key(PROFILE_ID), None),
+        (personal_pages.identity_cache_key(PROFILE_ID), "alice"),
+    ]
+
+
+def test_render_my_pages_uses_fetched_username_when_identity_cache_write_fails(
+    monkeypatch,
+):
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+    workflow.passwords["gitlab_api_key:" + PROFILE_ID] = "secret-token"
+    workflow.cache_data = lambda *args, **kwargs: (_ for _ in ()).throw(
+        OSError("identity cache unavailable")
+    )
+    monkeypatch.setattr(
+        mureq,
+        "get",
+        lambda *args, **kwargs: FakeResponse({"username": "alice"}),
+    )
+
+    personal_pages.render_my_pages(workflow, [first], first, "my")
+
+    assert workflow.items[0][2] == {
+        "arg": "https://first.example/alice",
+        "valid": True,
+    }
+    assert len(workflow.items) == 9
+    assert all(item[2]["valid"] is True for item in workflow.items)
+
+
 def test_render_my_pages_lists_default_pages_before_other_hosts():
     workflow = FakeWorkflow()
     first, company = configured_profiles()
@@ -301,7 +466,10 @@ def test_render_my_pages_lists_default_pages_before_other_hosts():
     )
     assert workflow.items[0][2]["arg"] == "https://first.example/alice"
     assert workflow.items[0][2]["valid"] is True
-    assert workflow.item_variables[0] == {"quick_open": "1"}
+    assert workflow.item_variables[0] == {
+        "quick_open": "1",
+        "url_separator": "",
+    }
     assert workflow.items[9] == (
         "my company",
         "Browse personal pages on company",
@@ -331,7 +499,10 @@ def test_render_my_pages_selects_exact_host_without_navigation_rows():
         "arg": "https://company.example/bob",
         "valid": True,
     }
-    assert all(variables == {"quick_open": "1"} for variables in workflow.item_variables)
+    assert all(
+        variables == {"quick_open": "1", "url_separator": ""}
+        for variables in workflow.item_variables
+    )
 
 
 def test_render_my_pages_filters_selected_host_pages():
@@ -352,7 +523,9 @@ def test_render_my_pages_filters_selected_host_pages():
             {"arg": "https://company.example/dashboard/issues", "valid": True},
         )
     ]
-    assert workflow.item_variables == [{"quick_open": "1"}]
+    assert workflow.item_variables == [
+        {"quick_open": "1", "url_separator": ""}
+    ]
 
 
 def test_render_my_pages_filters_multi_word_default_page():
@@ -499,6 +672,37 @@ def test_render_my_pages_preserves_installation_subpath_for_every_destination():
     ]
 
 
+def test_personal_page_items_resolve_exact_urls_through_quick_open_graph():
+    workflow = FakeWorkflow()
+    first, _company = configured_profiles()
+    cache_username(workflow, PROFILE_ID, "alice")
+    personal_pages.render_my_pages(workflow, [first], first, "my")
+    rows = {item[0]: index for index, item in enumerate(workflow.items)}
+
+    dashboard_index = rows["my dashboard"]
+    dashboard = workflow.items[dashboard_index]
+    issues_index = rows["my issues"]
+    issues = workflow.items[issues_index]
+
+    assert _resolve_quick_open_graph(
+        dashboard[2]["arg"], workflow.item_variables[dashboard_index]
+    ) == "https://first.example/"
+    assert _resolve_quick_open_graph(
+        issues[2]["arg"], workflow.item_variables[issues_index]
+    ) == "https://first.example/dashboard/issues"
+
+
+def test_personal_page_url_flow_preserves_project_open_graph_behavior():
+    assert _resolve_quick_open_graph(
+        "https://gitlab.example/group/project",
+        {"quick_open": "1"},
+    ) == "https://gitlab.example/group/project/"
+    assert _resolve_project_subpage_graph(
+        "https://gitlab.example/group/project",
+        "-/issues",
+    ) == "https://gitlab.example/group/project/-/issues"
+
+
 def test_render_my_pages_keeps_non_profile_pages_when_identity_is_unavailable():
     workflow = FakeWorkflow()
     first, _company = configured_profiles()
@@ -514,7 +718,7 @@ def test_render_my_pages_keeps_non_profile_pages_when_identity_is_unavailable():
     assert len(workflow.items) == 9
     assert all(item[2]["valid"] is True for item in workflow.items[1:])
     assert all(
-        variables == {"quick_open": "1"}
+        variables == {"quick_open": "1", "url_separator": ""}
         for variables in workflow.item_variables[1:]
     )
 

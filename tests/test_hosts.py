@@ -61,6 +61,7 @@ class FakeCache:
         self.legacy_projects = None
         self.project_values = {}
         self.invalidated = []
+        self.identity_invalidated = []
         self.cleared = []
 
     def load_legacy_projects(self):
@@ -75,6 +76,9 @@ class FakeCache:
 
     def invalidate_projects(self, profile_id):
         self.invalidated.append(profile_id)
+
+    def invalidate_identity(self, profile_id):
+        self.identity_invalidated.append(profile_id)
 
     def clear_profile_state(self, profile_id):
         self.project_values.pop(profile_id, None)
@@ -927,6 +931,58 @@ def test_render_default_host_list_shows_current_then_selectable_profiles():
             {"arg": second["id"], "valid": True},
         ),
     ]
+
+
+def test_render_default_host_list_strips_query_and_fragment_from_api_urls():
+    workflow = FakeWorkflow()
+    first_url = (
+        "https://first.example/api/v4/projects?private_token=first-secret#profile"
+    )
+    second_url = (
+        "https://second.example/gitlab/api/v4/projects?access_token=second-secret"
+        "#settings"
+    )
+    registry = hosts.HostRegistry(workflow)
+    first = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="first",
+            api_url=first_url,
+            token="first-token",
+        ),
+    )
+    second = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="second",
+            api_url=second_url,
+            token="second-token",
+        ),
+    )
+
+    host_commands.render_default_host_list(
+        workflow,
+        [first, second],
+        first["id"],
+    )
+
+    assert workflow.items == [
+        (
+            "first",
+            "Current default · https://first.example/api/v4/projects",
+            {"valid": False},
+        ),
+        (
+            "second",
+            "Set as default · https://second.example/gitlab/api/v4/projects",
+            {"arg": second["id"], "valid": True},
+        ),
+    ]
+    assert [profile["api_url"] for profile in hosts.get_profiles(workflow)] == [
+        first_url,
+        second_url,
+    ]
+    assert "secret" not in repr(workflow.items)
 
 
 def test_set_default_host_returns_selected_profile_message():

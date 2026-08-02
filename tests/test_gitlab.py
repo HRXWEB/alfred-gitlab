@@ -12,6 +12,7 @@ sys.path.insert(0, str(SRC_DIR))
 import cache_state
 import gitlab
 import hosts
+import personal_pages
 import search_refresh
 from host_values import NameSource
 from workflow import PasswordNotFound
@@ -106,6 +107,26 @@ class FakeWorkflow:
 
     def datafile(self, name):
         return str(Path(self.data_dir.name) / name)
+
+
+class MutableCacheWorkflow(FakeWorkflow):
+    def cache_data(self, name, value):
+        super().cache_data(name, value)
+        if value is None:
+            self.cached_values.pop(name, None)
+        else:
+            self.cached_values[name] = value
+
+
+class IdentityResponse:
+    def __init__(self, username):
+        self.username = username
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"username": self.username}
 
 
 class FakeCache:
@@ -536,6 +557,60 @@ def test_hostadd_reports_added_then_updated_without_exposing_token(capsys):
     )
 
 
+def test_hostadd_replacement_refreshes_identity_without_changing_project_invalidation(
+    monkeypatch,
+    capsys,
+):
+    workflow = MutableCacheWorkflow(
+        [
+            "--hostadd",
+            (
+                "company https://new.example/api/v4/projects "
+                "replacement-token"
+            ),
+        ]
+    )
+    stored = profile(
+        PROFILE_ID,
+        "company",
+        "https://old.example/api/v4/projects",
+    )
+    workflow.settings = {
+        "hosts": [stored],
+        "default_host_id": PROFILE_ID,
+        "host_schema_version": 1,
+    }
+    workflow.passwords[hosts.token_account(PROFILE_ID)] = "old-token"
+    workflow.cached_values[personal_pages.identity_cache_key(PROFILE_ID)] = "alice"
+    gitlab.log = FakeLogger()
+
+    gitlab.main(workflow)
+
+    assert capsys.readouterr().out == "Updated company\n"
+    assert workflow.cache_writes == [
+        (cache_state.projects_key(PROFILE_ID), None),
+        (personal_pages.identity_cache_key(PROFILE_ID), None),
+    ]
+    calls = []
+    monkeypatch.setattr(
+        personal_pages.mureq,
+        "get",
+        lambda url, headers: calls.append((url, headers))
+        or IdentityResponse("bob"),
+    )
+    updated = hosts.get_default_profile(workflow)
+    assert updated is not None
+    roots = personal_pages.derive_gitlab_roots(updated["api_url"])
+    assert roots is not None
+    assert personal_pages.resolve_username(workflow, updated, roots) == "bob"
+    assert calls == [
+        (
+            "https://new.example/api/v4/user",
+            {"PRIVATE-TOKEN": "replacement-token"},
+        )
+    ]
+
+
 def test_hostadd_http_warns_once_without_exposing_token(capsys):
     # Given: a synthetic HTTP host command and an observable workflow logger
     token = "synthetic-http-credential"
@@ -698,9 +773,10 @@ def test_hostremove_deletes_exact_profile_token_and_payload_state(capsys):
     assert capsys.readouterr().out == "Removed company\n"
     assert [stored["name"] for stored in workflow.settings["hosts"]] == ["public"]
     assert hosts.token_account(PROFILE_ID) not in workflow.passwords
-    assert workflow.cache_writes[-2:] == [
+    assert workflow.cache_writes[-3:] == [
         (cache_state.projects_key(PROFILE_ID), None),
         (cache_state.status_key(PROFILE_ID), None),
+        (personal_pages.identity_cache_key(PROFILE_ID), None),
     ]
 
 
@@ -825,17 +901,52 @@ def test_project_web_url_preserves_url_for_invalid_domain():
         assert gitlab.project_web_url(project_url, api_url) == project_url
 
 
-def test_setting_api_key_invalidates_projects_cache():
+def test_setting_api_key_invalidates_project_and_identity_caches():
     workflow = FakeWorkflow(["--setkey", "new-token"])
     gitlab.log = FakeLogger()
 
     gitlab.main(workflow)
 
     assert workflow.saved_passwords == [(f"gitlab_api_key:{PROFILE_ID}", "new-token")]
-    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
+    assert workflow.cache_writes == [
+        (cache_state.projects_key(PROFILE_ID), None),
+        (personal_pages.identity_cache_key(PROFILE_ID), None),
+    ]
 
 
-def test_setting_api_url_invalidates_projects_cache():
+def test_setting_api_key_refreshes_profile_identity_immediately(monkeypatch):
+    workflow = MutableCacheWorkflow(["--setkey", "new-token"])
+    identity_key = personal_pages.identity_cache_key(PROFILE_ID)
+    workflow.cached_values[identity_key] = "alice"
+    gitlab.log = FakeLogger()
+
+    gitlab.main(workflow)
+
+    assert workflow.cache_writes == [
+        (cache_state.projects_key(PROFILE_ID), None),
+        (identity_key, None),
+    ]
+    calls = []
+    monkeypatch.setattr(
+        personal_pages.mureq,
+        "get",
+        lambda url, headers: calls.append((url, headers))
+        or IdentityResponse("bob"),
+    )
+    selected = hosts.get_default_profile(workflow)
+    assert selected is not None
+    roots = personal_pages.derive_gitlab_roots(selected["api_url"])
+    assert roots is not None
+    assert personal_pages.resolve_username(workflow, selected, roots) == "bob"
+    assert calls == [
+        (
+            "https://gitlab.example.com/api/v4/user",
+            {"PRIVATE-TOKEN": "new-token"},
+        )
+    ]
+
+
+def test_setting_api_url_invalidates_project_and_identity_caches():
     workflow = FakeWorkflow(["--seturl", "http://gitlab.example.com/api/v4/projects"])
     logger = FakeLogger()
     gitlab.log = logger
@@ -847,8 +958,46 @@ def test_setting_api_url_invalidates_projects_cache():
     )
     assert workflow.settings["hosts"][0]["name"] == "gitlab.example.com"
     assert "api_url" not in workflow.settings
-    assert workflow.cache_writes == [(cache_state.projects_key(PROFILE_ID), None)]
+    assert workflow.cache_writes == [
+        (cache_state.projects_key(PROFILE_ID), None),
+        (personal_pages.identity_cache_key(PROFILE_ID), None),
+    ]
     assert logger.warnings == ["GitLab API token transport is not encrypted over HTTP"]
+
+
+def test_setting_api_url_refreshes_profile_identity_immediately(monkeypatch):
+    workflow = MutableCacheWorkflow(
+        ["--seturl", "https://new.example/api/v4/projects"]
+    )
+    identity_key = personal_pages.identity_cache_key(PROFILE_ID)
+    workflow.passwords[hosts.token_account(PROFILE_ID)] = "current-token"
+    workflow.cached_values[identity_key] = "alice"
+    gitlab.log = FakeLogger()
+
+    gitlab.main(workflow)
+
+    assert workflow.cache_writes == [
+        (cache_state.projects_key(PROFILE_ID), None),
+        (identity_key, None),
+    ]
+    calls = []
+    monkeypatch.setattr(
+        personal_pages.mureq,
+        "get",
+        lambda url, headers: calls.append((url, headers))
+        or IdentityResponse("bob"),
+    )
+    selected = hosts.get_default_profile(workflow)
+    assert selected is not None
+    roots = personal_pages.derive_gitlab_roots(selected["api_url"])
+    assert roots is not None
+    assert personal_pages.resolve_username(workflow, selected, roots) == "bob"
+    assert calls == [
+        (
+            "https://new.example/api/v4/user",
+            {"PRIVATE-TOKEN": "current-token"},
+        )
+    ]
 
 
 def test_setting_invalid_api_url_is_rejected():

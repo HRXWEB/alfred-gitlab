@@ -20,6 +20,7 @@ from cache_records import (
     Project,
     Projects,
     StatusRecord,
+    identity_cache_key,
     projects_key,
     sanitized_status,
     status_key,
@@ -42,6 +43,7 @@ __all__ = [
     "Project",
     "Projects",
     "StatusRecord",
+    "identity_cache_key",
     "projects_key",
     "status_key",
     "validate_profile_id",
@@ -143,6 +145,10 @@ class CacheState:
     def _invalidate_projects_locked(self, profile_id: str) -> None:
         _ = self._rotate_generation(profile_id)
         self.workflow.cache_data(projects_key(profile_id), None)
+
+    def invalidate_identity(self, profile_id: str) -> None:
+        with self._exclusive_lock(profile_id):
+            self.workflow.cache_data(identity_cache_key(profile_id), None)
 
     def begin_refresh(self, profile_id: str) -> str:
         with self._exclusive_lock(profile_id):
@@ -247,6 +253,7 @@ class CacheState:
             _ = self._rotate_generation(profile_id)
             self.workflow.cache_data(projects_key(profile_id), None)
             self.workflow.cache_data(status_key(profile_id), None)
+            self.workflow.cache_data(identity_cache_key(profile_id), None)
 
     def retire_profile(self, profile_id: str) -> None:
         with self._exclusive_lock(profile_id):
@@ -257,6 +264,7 @@ class CacheState:
                 _ = self._rotate_generation(profile_id)
                 self.workflow.cache_data(projects_key(profile_id), None)
                 self.workflow.cache_data(status_key(profile_id), None)
+                self.workflow.cache_data(identity_cache_key(profile_id), None)
             except CACHE_STATE_FAILURES:
                 try:
                     os.unlink(retired_path)

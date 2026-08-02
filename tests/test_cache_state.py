@@ -20,6 +20,7 @@ class FakeWorkflow:
         self.data_dir: Path = data_dir
         self.cache: dict[str, cache_state.CachePayload] = {}
         self.read_errors: dict[str, Exception] = {}
+        self.write_errors: dict[str, Exception] = {}
 
     def datafile(self, name: str) -> str:
         return str(self.data_dir / name)
@@ -31,8 +32,11 @@ class FakeWorkflow:
     ) -> None:
         if value is None:
             _ = self.cache.pop(name, None)
-            return
-        self.cache[name] = value
+        else:
+            self.cache[name] = value
+        error = self.write_errors.pop(name, None)
+        if error is not None:
+            raise error
 
     def cached_data(
         self,
@@ -94,6 +98,22 @@ def test_invalidation_rejects_only_same_profile_generation(
     # Then: A's stale write is rejected and B's write remains valid
     assert not cache.store_projects(PROFILE_A, generation_a, [])
     assert cache.store_projects(PROFILE_B, generation_b, [])
+
+
+def test_identity_invalidation_preserves_project_cache_state(tmp_path: Path) -> None:
+    workflow = FakeWorkflow(tmp_path)
+    cache = cache_state.CacheState(workflow)
+    project_key = cache_state.projects_key(PROFILE_A)
+    identity_key = cache_state.identity_cache_key(PROFILE_A)
+    workflow.cache[project_key] = [{"id": 1}]
+    workflow.cache[identity_key] = "alice"
+    generation = cache.current_generation(PROFILE_A)
+
+    cache.invalidate_identity(PROFILE_A)
+
+    assert identity_key not in workflow.cache
+    assert workflow.cache[project_key] == [{"id": 1}]
+    assert cache.current_generation(PROFILE_A) == generation
 
 
 def test_refresh_success_atomically_replaces_projects_and_clears_status(
@@ -311,6 +331,36 @@ def test_retired_profile_rejects_refresh_started_after_removal(
 
     with pytest.raises(cache_state.RetiredProfileError):
         cache.begin_refresh(PROFILE_A)
+
+
+def test_retired_profile_clears_profile_scoped_identity(tmp_path: Path) -> None:
+    workflow = FakeWorkflow(tmp_path)
+    cache = cache_state.CacheState(workflow)
+    identity_a = cache_state.identity_cache_key(PROFILE_A)
+    identity_b = cache_state.identity_cache_key(PROFILE_B)
+    workflow.cache[identity_a] = "alice"
+    workflow.cache[identity_b] = "bob"
+
+    cache.retire_profile(PROFILE_A)
+
+    assert identity_a not in workflow.cache
+    assert workflow.cache[identity_b] == "bob"
+
+
+def test_identity_cleanup_failure_rolls_back_profile_retirement(
+    tmp_path: Path,
+) -> None:
+    workflow = FakeWorkflow(tmp_path)
+    cache = cache_state.CacheState(workflow)
+    identity_key = cache_state.identity_cache_key(PROFILE_A)
+    workflow.cache[identity_key] = "alice"
+    workflow.write_errors[identity_key] = OSError("identity cache unavailable")
+
+    with pytest.raises(OSError, match="identity cache unavailable"):
+        cache.retire_profile(PROFILE_A)
+
+    assert not Path(cache.retired_path(PROFILE_A)).exists()
+    assert cache.begin_refresh(PROFILE_A)
 
 
 def test_restored_profile_can_refresh_after_failed_removal(tmp_path: Path) -> None:

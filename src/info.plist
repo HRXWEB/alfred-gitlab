@@ -286,7 +286,7 @@
 				<key>spaces</key>
 				<string></string>
 				<key>url</key>
-				<string>{var:repo}/{var:subfolder}</string>
+				<string>{var:repo}{var:url_separator}{var:subfolder}</string>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.action.openurl</string>
@@ -1194,10 +1194,13 @@ Tested with Alfred 5.7.3 [2320].</string>
 	<dict>
 		<key>quick_open</key>
 		<string>0</string>
+		<key>url_separator</key>
+		<string>/</string>
 	</dict>
 	<key>variablesdontexport</key>
 	<array>
 		<string>quick_open</string>
+		<string>url_separator</string>
 	</array>
 	<key>version</key>
 	<string>4.2.0</string>
