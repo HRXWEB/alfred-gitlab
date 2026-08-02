@@ -74,6 +74,36 @@ def remove_host(
     return f"Removed {removed.name}"
 
 
+def set_default_host(workflow: WorkflowLike, profile_id: str) -> str:
+    selected = HostRegistry(workflow).set_default(profile_id)
+    return f"Default host set to {selected.name}"
+
+
+def render_default_host_list(
+    workflow: HostCommandWorkflow,
+    profiles: Sequence[ProfileRecord],
+    default_profile_id: str,
+) -> None:
+    for profile in sorted(
+        profiles,
+        key=lambda profile: profile["id"] != default_profile_id,
+    ):
+        is_default = profile["id"] == default_profile_id
+        workflow.add_item(
+            profile["name"],
+            (
+                f"Current default · {profile['api_url']}"
+                if is_default
+                else f"Set as default · {profile['api_url']}"
+            ),
+            **(
+                {"valid": False}
+                if is_default
+                else {"arg": profile["id"], "valid": True}
+            ),
+        )
+
+
 def render_host_list(
     workflow: HostCommandWorkflow,
     profiles: Sequence[ProfileRecord],

@@ -8,6 +8,7 @@ sys.path.insert(0, str(SRC_DIR))
 
 import host_values
 import hosts
+import host_commands
 from workflow import KeychainError, PasswordNotFound
 
 
@@ -17,6 +18,7 @@ class FakeWorkflow:
         self.passwords = {}
         self.saved_passwords = []
         self.deleted_passwords = []
+        self.items = []
 
     def save_password(self, account, password):
         self.passwords[account] = password
@@ -31,6 +33,9 @@ class FakeWorkflow:
     def delete_password(self, account):
         del self.passwords[account]
         self.deleted_passwords.append(account)
+
+    def add_item(self, title, subtitle=None, **kwargs):
+        self.items.append((title, subtitle, kwargs))
 
 
 class FailingSettings(dict):
@@ -804,6 +809,150 @@ def test_get_default_profile_when_default_is_missing_uses_first_profile():
     # Then: the first stored profile is returned
     assert profile is not None
     assert profile["id"] == "first-id"
+
+
+def test_set_default_profile_selects_known_id_without_reordering():
+    # A wrong selection or a list rewrite must fail this behavior check.
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    first = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="first",
+            api_url="https://first.example/api/v4/projects",
+            token="first-token",
+        ),
+    )
+    second = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="second",
+            api_url="https://second.example/api/v4/projects",
+            token="second-token",
+        ),
+    )
+
+    selected = hosts.set_default_profile(registry, second["id"])
+
+    assert selected == second
+    assert hosts.get_profiles(workflow) == [first, second]
+    assert workflow.settings["default_host_id"] == second["id"]
+
+
+def test_set_default_profile_rejects_unknown_id_without_mutation():
+    # Removing validation before a write must fail this behavior check.
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="first",
+            api_url="https://first.example/api/v4/projects",
+            token="first-token",
+        ),
+    )
+    original = dict(workflow.settings)
+
+    with pytest.raises(hosts.UnknownHostProfileIdError):
+        hosts.set_default_profile(registry, "missing-id")
+
+    assert workflow.settings == original
+
+
+def test_set_default_profile_when_settings_partially_commit_restores_default():
+    # Omitting rollback after a partial settings write must fail this check.
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    first = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="first",
+            api_url="https://first.example/api/v4/projects",
+            token="first-token",
+        ),
+    )
+    second = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="second",
+            api_url="https://second.example/api/v4/projects",
+            token="second-token",
+        ),
+    )
+    workflow.settings = PartiallyFailingSettings(workflow.settings)
+
+    with pytest.raises(OSError, match="settings unavailable"):
+        hosts.set_default_profile(registry, second["id"])
+
+    assert hosts.get_profiles(workflow) == [first, second]
+    assert workflow.settings["default_host_id"] == first["id"]
+
+
+def test_render_default_host_list_shows_current_then_selectable_profiles():
+    # Reversed rows or incorrect Alfred payloads must fail this check.
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    first = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="first",
+            api_url="https://first.example/api/v4/projects",
+            token="first-token",
+        ),
+    )
+    second = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="second",
+            api_url="https://second.example/api/v4/projects",
+            token="second-token",
+        ),
+    )
+
+    host_commands.render_default_host_list(
+        workflow,
+        [first, second],
+        first["id"],
+    )
+
+    assert workflow.items == [
+        (
+            "first",
+            "Current default · https://first.example/api/v4/projects",
+            {"valid": False},
+        ),
+        (
+            "second",
+            "Set as default · https://second.example/api/v4/projects",
+            {"arg": second["id"], "valid": True},
+        ),
+    ]
+
+
+def test_set_default_host_returns_selected_profile_message():
+    # Returning a stale or generic confirmation must fail this behavior check.
+    workflow = FakeWorkflow()
+    registry = hosts.HostRegistry(workflow)
+    _ = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="first",
+            api_url="https://first.example/api/v4/projects",
+            token="first-token",
+        ),
+    )
+    second = hosts.add_or_update_profile(
+        registry,
+        host_values.ProfileDraft(
+            name="second",
+            api_url="https://second.example/api/v4/projects",
+            token="second-token",
+        ),
+    )
+
+    message = host_commands.set_default_host(workflow, second["id"])
+
+    assert message == "Default host set to second"
 
 
 def test_remove_profile_when_removing_default_selects_first_remaining():

@@ -2,11 +2,13 @@ from host_registry import (
     HOST_SCHEMA_VERSION,
     HostRegistry,
     RegistryCallbacks,
+    UnknownHostProfileIdError,
     add_or_update_profile,
     get_default_profile,
     get_profiles,
     new_profile_id,
     remove_profile,
+    set_default_profile,
     token_account,
 )
 from host_registry_state import SettingsStore, WorkflowLike
@@ -42,7 +44,9 @@ __all__ = [
     "migrate_legacy_profile",
     "new_profile_id",
     "remove_profile",
+    "set_default_profile",
     "set_default_token",
     "set_default_url",
     "token_account",
+    "UnknownHostProfileIdError",
 ]
