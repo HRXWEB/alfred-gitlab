@@ -645,6 +645,22 @@ def test_hostdefault_list_renders_feedback():
     assert workflow.items[0][1].startswith("Current default · ")
 
 
+def test_hostdefault_list_without_profiles_shows_setup_guidance():
+    workflow = FakeWorkflow(["--hostdefault-list"])
+    workflow.settings = {}
+    gitlab.log = FakeLogger()
+
+    assert gitlab.main(workflow) == 0
+    assert workflow.items == [
+        (
+            "No API key set.",
+            "Please use glsetkey to set your GitLab API key.",
+            {"valid": False, "icon": gitlab.ICON_WARNING},
+        )
+    ]
+    assert workflow.feedback_count == 1
+
+
 def test_hostdefault_action_prints_selected_name(capsys):
     workflow = FakeWorkflow(["--set-default-host", PROFILE_ID])
     gitlab.log = FakeLogger()
@@ -1051,15 +1067,19 @@ def test_hostdefault_workflow_connection():
     )
 
     assert chooser["type"] == "alfred.workflow.input.scriptfilter"
+    assert chooser["config"]["argumenttype"] == 2
+    assert chooser["config"]["withspace"] is False
     assert chooser["config"]["script"] == "python3 gitlab.py --hostdefault-list"
     action_uid = workflow["connections"][chooser["uid"]][0]["destinationuid"]
     action = objects_by_uid[action_uid]
+    assert action["type"] == "alfred.workflow.action.script"
     assert action["config"]["script"] == (
         'python3 gitlab.py --set-default-host "{query}"'
     )
 
     notification_uid = workflow["connections"][action_uid][0]["destinationuid"]
     notification = objects_by_uid[notification_uid]
+    assert notification["type"] == "alfred.workflow.output.notification"
     assert notification["config"]["title"] == "Default GitLab Host Changed"
     assert notification["config"]["text"] == "{query}"
 

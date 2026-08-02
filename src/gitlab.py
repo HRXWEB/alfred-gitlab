@@ -121,6 +121,15 @@ def main(wf):
 
     if args.hostdefault_list:
         profiles = ensure_profiles(wf, cache)
+        if not profiles:
+            wf.add_item(
+                "No API key set.",
+                "Please use glsetkey to set your GitLab API key.",
+                valid=False,
+                icon=ICON_WARNING,
+            )
+            wf.send_feedback()
+            return 0
         default_profile = get_default_profile(wf)
         assert default_profile is not None
         render_default_host_list(wf, profiles, default_profile["id"])
