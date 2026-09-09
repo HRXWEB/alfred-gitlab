@@ -23,4 +23,4 @@ def test_build_is_deterministic_and_uses_fixed_metadata(tmp_path):
             for item in archive.infolist()
         )
         assert "personal_pages.py" in archive.namelist()
-        assert plistlib.loads(archive.read("info.plist"))["version"] == "4.2.0"
+        assert plistlib.loads(archive.read("info.plist"))["version"] == "4.2.1"

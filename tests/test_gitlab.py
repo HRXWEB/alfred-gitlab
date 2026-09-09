@@ -1,3 +1,4 @@
+import json
 import pickle
 import plistlib
 import sys
@@ -41,6 +42,14 @@ class FakeLogger:
         self.warnings.append(message)
 
 
+class FakeItem:
+    def __init__(self):
+        self.variables = {}
+
+    def setvar(self, name, value):
+        self.variables[name] = value
+
+
 class FakeWorkflow:
     def __init__(self, args):
         self.args = args
@@ -62,6 +71,7 @@ class FakeWorkflow:
         self.fresh_cache_keys = set()
         self.freshness_checks = []
         self.items = []
+        self.item_variables = []
         self.filter_calls = []
         self.feedback_count = 0
         self.rerun = 0.0
@@ -94,6 +104,9 @@ class FakeWorkflow:
 
     def add_item(self, title, subtitle=None, **kwargs):
         self.items.append((title, subtitle, kwargs))
+        item = FakeItem()
+        self.item_variables.append(item.variables)
+        return item
 
     def send_feedback(self):
         self.feedback_count += 1
@@ -204,6 +217,32 @@ def test_my_prefix_remains_project_search(query, monkeypatch):
     assert [item["id"] for item in aggregate_calls[0][1]] == [PROFILE_ID]
     assert workflow.filter_calls == [(query, 20)]
     assert [item[0] for item in workflow.items] == ["Found / " + query]
+
+
+def test_project_result_exposes_clone_urls_to_following_workflow_actions(monkeypatch):
+    workflow = FakeWorkflow(["project"])
+    project = {
+        "id": 7,
+        "name_with_namespace": "Example / Project",
+        "path_with_namespace": "example/project",
+        "web_url": "https://gitlab.example.com/example/project",
+        "ssh_url_to_repo": "git@gitlab.example.com:example/project.git",
+        "http_url_to_repo": "https://gitlab.example.com/example/project.git",
+        "_host_name": "gitlab.example.com",
+        "_api_url": "https://gitlab.example.com/api/v4/projects",
+        "_alfred_uid": PROFILE_ID + ":7",
+    }
+    monkeypatch.setattr(gitlab, "aggregate_projects", lambda *args: [project])
+    gitlab.log = FakeLogger()
+
+    gitlab.main(workflow)
+
+    assert workflow.item_variables == [
+        {
+            "ssh_clone_url": "git@gitlab.example.com:example/project.git",
+            "http_clone_url": "https://gitlab.example.com/example/project.git",
+        }
+    ]
 
 
 def test_aggregate_projects_preserves_duplicate_project_ids_without_mutation():
@@ -1145,7 +1184,7 @@ def test_workflow_exposes_glrefresh_keyword():
 def test_v4_workflow_metadata():
     workflow = load_plist()
 
-    assert workflow["version"] == "4.2.0"
+    assert workflow["version"] == "4.2.1"
     assert workflow["createdby"] == "HRXWEB"
     assert workflow["bundleid"] == "com.lukewaite.alfred-gitlab"
 
@@ -1278,6 +1317,81 @@ def test_workflow_uses_gitlab_16_subpage_paths():
     assert '"arg":"-/project_members"' in list_items[0]
     assert '"arg":"-/network/main"' in list_items[0]
     assert '"arg":"-/settings/ci_cd"' in list_items[0]
+
+
+def test_project_action_menu_contains_clone_copy_actions_in_initial_positions():
+    workflow = load_plist()
+    menu = next(
+        item
+        for item in workflow["objects"]
+        if item["type"] == "alfred.workflow.input.listfilter"
+    )
+    items = json.loads(menu["config"]["items"])
+
+    assert menu["config"]["fixedorder"] is False
+    assert [item["title"] for item in items] == [
+        "Overview",
+        "Pipelines",
+        "Copy SSH Clone URL",
+        "Issues",
+        "Merge Request",
+        "Members",
+        "Graph",
+        "Settings CI/CD",
+        "Copy HTTP Clone URL",
+    ]
+    assert items[2] == {
+        "title": "Copy SSH Clone URL",
+        "arg": "copy-ssh",
+    }
+    assert items[-1] == {
+        "title": "Copy HTTP Clone URL",
+        "arg": "copy-http",
+    }
+
+
+@pytest.mark.parametrize(
+    ("menu_arg", "clone_variable"),
+    [
+        ("copy-ssh", "{var:ssh_clone_url}"),
+        ("copy-http", "{var:http_clone_url}"),
+    ],
+)
+def test_project_action_menu_routes_clone_url_to_system_clipboard(
+    menu_arg,
+    clone_variable,
+):
+    workflow = load_plist()
+    objects_by_uid = {item["uid"]: item for item in workflow["objects"]}
+    menu = next(
+        item
+        for item in workflow["objects"]
+        if item["type"] == "alfred.workflow.input.listfilter"
+    )
+    destinations = [
+        objects_by_uid[connection["destinationuid"]]
+        for connection in workflow["connections"][menu["uid"]]
+    ]
+    copy_filter = next(
+        item
+        for item in destinations
+        if item["type"] == "alfred.workflow.utility.filter"
+        and item["config"]["matchmode"] == 0
+        and item["config"]["inputstring"] == "{query}"
+        and item["config"]["matchstring"] == menu_arg
+    )
+    clipboard_uid = workflow["connections"][copy_filter["uid"]][0]["destinationuid"]
+    clipboard = objects_by_uid[clipboard_uid]
+
+    assert clipboard["type"] == "alfred.workflow.output.clipboard"
+    assert clipboard["config"]["clipboardtext"] == clone_variable
+    assert clipboard["config"]["autopaste"] is False
+
+    notification_uid = workflow["connections"][clipboard_uid][0]["destinationuid"]
+    notification = objects_by_uid[notification_uid]
+    assert notification["type"] == "alfred.workflow.output.notification"
+    assert notification["config"]["title"] == "Clone URL Copied"
+    assert notification["config"]["text"] == clone_variable
 
 
 def test_workflow_exposes_quick_open_configuration():

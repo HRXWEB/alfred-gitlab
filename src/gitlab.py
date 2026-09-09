@@ -211,7 +211,7 @@ def main(wf):
     # Loop through the returned posts and add an item for each to
     # the list of results for Alfred
     for project in projects:
-        wf.add_item(
+        item = wf.add_item(
             title=project["name_with_namespace"],
             subtitle=(
                 "{} · {}".format(
@@ -224,6 +224,12 @@ def main(wf):
             icon=None,
             uid=project["_alfred_uid"],
         )
+        ssh_clone_url = project.get("ssh_url_to_repo")
+        if isinstance(ssh_clone_url, str):
+            item.setvar("ssh_clone_url", ssh_clone_url)
+        http_clone_url = project.get("http_url_to_repo")
+        if isinstance(http_clone_url, str):
+            item.setvar("http_clone_url", http_clone_url)
 
     # Send the results to Alfred as XML
     wf.send_feedback()
