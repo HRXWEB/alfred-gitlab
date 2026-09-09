@@ -114,7 +114,105 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
+				<string>9A78D4E2-05CB-4C73-8F36-9B4D46C553B1</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>BFC38A14-E893-47BB-BB09-EF7609B6C912</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>F1111111-1111-4111-8111-111111111111</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>9A78D4E2-05CB-4C73-8F36-9B4D46C553B1</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>D680B93B-72BF-43A0-AF35-A3489CA86657</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>BFC38A14-E893-47BB-BB09-EF7609B6C912</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F4444444-4444-4444-8444-444444444444</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>F1111111-1111-4111-8111-111111111111</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F2222222-2222-4222-8222-222222222222</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>F2222222-2222-4222-8222-222222222222</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F3333333-3333-4333-8333-333333333333</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>F4444444-4444-4444-8444-444444444444</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
 				<string>C29BE46B-A223-4ADD-B933-2AC28716AC4C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>D680B93B-72BF-43A0-AF35-A3489CA86657</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>E751504C-5360-4652-8A71-B868A335D073</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -298,6 +396,154 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>inputstring</key>
+				<string>{query}</string>
+				<key>matchcasesensitive</key>
+				<true/>
+				<key>matchmode</key>
+				<integer>0</integer>
+				<key>matchstring</key>
+				<string>copy-ssh</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.filter</string>
+			<key>uid</key>
+			<string>9A78D4E2-05CB-4C73-8F36-9B4D46C553B1</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>inputstring</key>
+				<string>{query}</string>
+				<key>matchcasesensitive</key>
+				<true/>
+				<key>matchmode</key>
+				<integer>1</integer>
+				<key>matchstring</key>
+				<string>copy-ssh</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.filter</string>
+			<key>uid</key>
+			<string>BFC38A14-E893-47BB-BB09-EF7609B6C912</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
+				<string>{var:ssh_clone_url}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>D680B93B-72BF-43A0-AF35-A3489CA86657</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{var:ssh_clone_url}</string>
+				<key>title</key>
+				<string>Clone URL Copied</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>E751504C-5360-4652-8A71-B868A335D073</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>inputstring</key>
+				<string>{query}</string>
+				<key>matchcasesensitive</key>
+				<true/>
+				<key>matchmode</key>
+				<integer>0</integer>
+				<key>matchstring</key>
+				<string>copy-http</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.filter</string>
+			<key>uid</key>
+			<string>F1111111-1111-4111-8111-111111111111</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
+				<string>{var:http_clone_url}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>F2222222-2222-4222-8222-222222222222</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{var:http_clone_url}</string>
+				<key>title</key>
+				<string>Clone URL Copied</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>F3333333-3333-4333-8333-333333333333</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>inputstring</key>
+				<string>{query}</string>
+				<key>matchcasesensitive</key>
+				<true/>
+				<key>matchmode</key>
+				<integer>1</integer>
+				<key>matchstring</key>
+				<string>copy-http</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.filter</string>
+			<key>uid</key>
+			<string>F4444444-4444-4444-8444-444444444444</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>argument</key>
 				<string></string>
 				<key>passthroughargument</key>
@@ -395,7 +641,7 @@
 				<key>fixedorder</key>
 				<false/>
 				<key>items</key>
-				<string>[{"title":"Overview"},{"title":"Pipelines","arg":"-/pipelines"},{"title":"Issues","arg":"-/issues"},{"title":"Merge Request","arg":"-/merge_requests"},{"title":"Members","arg":"-/project_members"},{"title":"Graph","arg":"-/network/main"},{"title":"Settings CI/CD","arg":"-/settings/ci_cd"}]</string>
+				<string>[{"title":"Overview"},{"title":"Pipelines","arg":"-/pipelines"},{"title":"Copy SSH Clone URL","arg":"copy-ssh"},{"title":"Issues","arg":"-/issues"},{"title":"Merge Request","arg":"-/merge_requests"},{"title":"Members","arg":"-/project_members"},{"title":"Graph","arg":"-/network/main"},{"title":"Settings CI/CD","arg":"-/settings/ci_cd"},{"title":"Copy HTTP Clone URL","arg":"copy-http"}]</string>
 				<key>matchmode</key>
 				<integer>0</integer>
 				<key>runningsubtext</key>
@@ -1203,7 +1449,7 @@ Tested with Alfred 5.7.3 [2320].</string>
 		<string>url_separator</string>
 	</array>
 	<key>version</key>
-	<string>4.2.0</string>
+	<string>4.2.1</string>
 	<key>webaddress</key>
 	<string>https://lukewaite.ca</string>
 </dict>

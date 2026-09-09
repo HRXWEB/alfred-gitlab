@@ -174,8 +174,24 @@ def _resolve_project_subpage_graph(repository_url, subpage):
         for item in workflow["objects"]
         if item["type"] == "alfred.workflow.input.listfilter"
     )
+    branches = [
+        objects[connection["destinationuid"]]
+        for connection in workflow["connections"][list_filter["uid"]]
+    ]
+    ssh_open_branch = next(
+        item
+        for item in branches
+        if item["type"] == "alfred.workflow.utility.filter"
+        and item["config"]["matchmode"] == 1
+        and item["config"]["matchstring"] == "copy-ssh"
+    )
+    http_open_branch = objects[
+        workflow["connections"][ssh_open_branch["uid"]][0]["destinationuid"]
+    ]
+    assert http_open_branch["config"]["matchmode"] == 1
+    assert http_open_branch["config"]["matchstring"] == "copy-http"
     subpage_argument = objects[
-        workflow["connections"][list_filter["uid"]][0]["destinationuid"]
+        workflow["connections"][http_open_branch["uid"]][0]["destinationuid"]
     ]
     open_url = objects[
         workflow["connections"][subpage_argument["uid"]][0]["destinationuid"]

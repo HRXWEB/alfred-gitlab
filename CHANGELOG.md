@@ -5,6 +5,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v4.2.1] (2026-09-09)
+* Add project actions to copy SSH and HTTP clone URLs to the system clipboard
+* Preserve Alfred's usage-based ordering for project actions
+
 ## [v4.2.0] (2026-08-02)
 * Add `glhostdefault` to select the default GitLab profile
 * Add default-first `gl my` navigation for personal GitLab pages
@@ -106,7 +110,8 @@ upgraded to the fork in the meantime has the ability to pull updates in the futu
 
 * Initial implementaiton of alfred-gitlab workflow
 
-[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.2.1...HEAD
+[v4.2.1]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.2.0...v4.2.1
 [v4.2.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.1.0...v4.2.0
 [v4.1.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v4.0.0...v4.1.0
 [v4.0.0]: https://github.com/HRXWEB/alfred-gitlab/compare/v3.1.0...v4.0.0
