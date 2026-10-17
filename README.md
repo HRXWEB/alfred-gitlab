@@ -68,8 +68,11 @@ does not hide its last known projects.
 The core API and personal-page routes are expected to work with GitLab
 14–19 (six major versions), based on representative upstream source tags.
 This is a source review, not live certification of every minor release or
-JiHu deployment. See the [Chinese upgrade and AI coding briefing](docs/gitlab-19-upgrade.html)
-for the compatibility matrix, sources, AI prerequisites, and instance checks.
+JiHu deployment. See the [Chinese GitLab AI field manual](docs/gitlab-19-upgrade.html)
+for 16 scenario guides with setup steps, examples, validation, troubleshooting,
+and the compatibility matrix. The static pages open directly without a server.
+Download the complete [offline guide ZIP](https://github.com/HRXWEB/alfred-gitlab/releases/download/v4.2.2/gitlab-ai-guide.zip)
+to read the multi-page manual locally.
 The machine-readable [source audit](docs/gitlab-compatibility-audit.json) can be
 repeated with `python3 scripts/check_gitlab_compatibility.py`.
 

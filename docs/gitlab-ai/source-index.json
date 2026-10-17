@@ -1,0 +1,223 @@
+{
+  "review_date": "2026-10-17",
+  "upstream_tag": "v19.3.3",
+  "instance_verified": false,
+  "documents": [
+    {
+      "path": "doc/administration/gitlab_duo_self_hosted/configure_duo_features.md",
+      "title": "网关、模型注册与功能配置",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/administration/gitlab_duo_self_hosted/configure_duo_features.md",
+      "sha256": "ee4f07962d69ab98f2d1890baf836f4287c366ee526b6df275163a6e6a142369"
+    },
+    {
+      "path": "doc/releases/19/gitlab-19-3-released/aws-bedrock-mantle.md",
+      "title": "上游 Bedrock Mantle Beta",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/releases/19/gitlab-19-3-released/aws-bedrock-mantle.md",
+      "sha256": "d562dd16f7e89e148ad3435776637c057c015533c3e27e9abe50b962702e71bb"
+    },
+    {
+      "path": "doc/releases/19/gitlab-19-3-released/bulk_flow_execution.md",
+      "title": "19.3 批量执行 SAST 分析与修复",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/releases/19/gitlab-19-3-released/bulk_flow_execution.md",
+      "sha256": "45961bfdb6a9354962a3e32d5ee717a1a2e56f14aafe33b098ad7221a8a8b551"
+    },
+    {
+      "path": "doc/releases/19/gitlab-19-3-released/devstral-2-deprecate.md",
+      "title": "上游 Devstral 2 弃用说明",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/releases/19/gitlab-19-3-released/devstral-2-deprecate.md",
+      "sha256": "e9787d80f9c92f21056fd3fcec4f20e18f18fa2958f808b1732d106d0ac77b35"
+    },
+    {
+      "path": "doc/releases/19/gitlab-19-3-released/index.md",
+      "title": "19.3 发布说明（新 IDE UI）",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/releases/19/gitlab-19-3-released/index.md",
+      "sha256": "d4e76ae03fd68889ecda5c97f1ca98a207a26e89c1dc7c2ddbaea8b8b863e90c"
+    },
+    {
+      "path": "doc/releases/19/gitlab-19-3-released/session-detail-plan-sidebar.md",
+      "title": "19.3 会话侧栏任务计划",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/releases/19/gitlab-19-3-released/session-detail-plan-sidebar.md",
+      "sha256": "1e2a09fee349759282062f40b5323c5ec87634066052f18572611f7a7ee3f9c8"
+    },
+    {
+      "path": "doc/subscriptions/gitlab_credits.md",
+      "title": "19.3 Credits 上限、用量与 GraphQL 入口",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/subscriptions/gitlab_credits.md",
+      "sha256": "44de403dc540da20280286a2e1b75c38134ccd2d8528252bf897af1364ce662d"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/agents/custom.md",
+      "title": "19.3 Restricted 可见性",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/agents/custom.md",
+      "sha256": "85df049105a07057b2fb1e097747ac1e666feb907c941a777e662516c6f5d7a8"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/agents/external.md",
+      "title": "外部 Agent 的配置、启用与使用",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/agents/external.md",
+      "sha256": "0558dd99a978cc7c858624aceaa5102a7bb84a282181d3f34c43c429e2d61609"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/agents/foundational_agents/ci_expert_agent.md",
+      "title": "CI Expert 入口和适用场景",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/agents/foundational_agents/ci_expert_agent.md",
+      "sha256": "e630d42d3626d65954c899d0e3c8ab7b9cbdfc88671a690b30de366c8de2b611"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/agents/foundational_agents/flow_creator.md",
+      "title": "Flow Creator 入口、配置输出与限制",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/agents/foundational_agents/flow_creator.md",
+      "sha256": "a83862cca2f6bd441ce50f1e7fbfd77b7cce1a16ebf90a8a43703f280fb018eb"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/agents/foundational_agents/planner.md",
+      "title": "Planner 入口与前置条件",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/agents/foundational_agents/planner.md",
+      "sha256": "2ea5e99e110fe66f32430c3d8edb404812286f7159807a817c8ce77e94576adb"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/code_suggestions/_index.md",
+      "title": "Code Suggestions 使用方式与按键",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/code_suggestions/_index.md",
+      "sha256": "d9954ef5c6d6d64ffbc9b31cc787bcae04ea496a81439a86d61b342d8c1e97e1"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/customize/review_instructions.md",
+      "title": "规则路径、结构与群组模板",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/customize/review_instructions.md",
+      "sha256": "72ac90bbe56dd5a23ea9de449f7a6313450fc68bcde0e80c2ef08f6395dcbbb4"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/custom.md",
+      "title": "Restricted 可见性、范围和切换限制",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/custom.md",
+      "sha256": "afa1028e88db214f4d8bc0558c5babe976dc704e2a5704546d2fd46be1af6d43"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/execution/_index.md",
+      "title": "Runner 与执行环境",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/execution/_index.md",
+      "sha256": "9fc01acb1f4c5e975c9b0622610c49c6260bc59ebc3142e675a4c3ff0fa0f587"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/execution/agent-config-yaml.md",
+      "title": "agent-config.yml 路径与默认分支规则",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/execution/agent-config-yaml.md",
+      "sha256": "38d0f6e16ed86de32bfa5aa66079df34e9e069d67d3ccec69d051afeb3bbb4c6"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/_index.md",
+      "title": "内置任务流的实例、群组和项目开关",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/_index.md",
+      "sha256": "0f801fff468a90008e310515f0d3334bd4dd7740e0ce5be915e09f152a55188d"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/agentic_sast_vulnerability_resolution.md",
+      "title": "漏洞修复的专用入口与执行条件",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/agentic_sast_vulnerability_resolution.md",
+      "sha256": "33f35b42c4d213b5fb7211f591e746c380f48172c8658c3df4255acab9a2976c"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/code_review/_index.md",
+      "title": "自动评审设置和排除规则",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/code_review/_index.md",
+      "sha256": "879d08de3dc9692ee98c4a635718905637e59d6bfbc1ec920f9414079d25d6ca"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/developer.md",
+      "title": "指派、提及和 Implement work item 入口",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/developer.md",
+      "sha256": "b3313d764da6b2cc13eaca777d370fe332914b484bbf2d781ab4c12c47f74c58"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/fix_pipeline.md",
+      "title": "日志上限与诊断限制",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/fix_pipeline.md",
+      "sha256": "7f45adf3e7ac7aa9c68da2205da3e4186cf44927854a990748d85a7bda49eafc"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/sast_false_positive_detection.md",
+      "title": "SAST 误报分析入口与自动条件",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/sast_false_positive_detection.md",
+      "sha256": "497abd991e2d44bb47a06d5c3da516eb205699a75bc78028d917a438bff4925e"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/secret_false_positive_detection.md",
+      "title": "Secret false positive detection",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/secret_false_positive_detection.md",
+      "sha256": "b7dc3c914ca2fb59527b6e3cc3e51f84f9719d23086c1734f7bbe47020a8bba4"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/security_review.md",
+      "title": "Security Review Flow 专项参考",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/security_review.md",
+      "sha256": "42c450255646283b35c11b7899bdfc1bcee2b4f089285659f59d0b6cf663b689"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/flows/foundational_flows/software_development.md",
+      "title": "Software Development Flow",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/flows/foundational_flows/software_development.md",
+      "sha256": "751c669b059688f4a26eb39b6a22d3f03dcc91597f06cdfae2c6995222fe97d4"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/sessions/_index.md",
+      "title": "人工检查点的条件与响应",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/sessions/_index.md",
+      "sha256": "ed8d103c773ca18de74f547edfa670cfde6929a9eb2e0277662707fde97d2e04"
+    },
+    {
+      "path": "doc/user/duo_agent_platform/turn_on_off.md",
+      "title": "Agent Platform 开关与自部署授权条件",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/duo_agent_platform/turn_on_off.md",
+      "sha256": "bf356ddbd993e1e768f9a9a60041dd638e44fee66d218665a0f0700edb732ace"
+    },
+    {
+      "path": "doc/user/gitlab_duo_chat/agentic_chat.md",
+      "title": "Agentic Chat 的 IDE、网页入口与能力",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/gitlab_duo_chat/agentic_chat.md",
+      "sha256": "fc9f289ff3557e8ea6587a3244eb4ea7b3405a4cfe0ddb252036d536d272f96d"
+    },
+    {
+      "path": "doc/user/gitlab_duo_cli/customize.md",
+      "title": "插件、市场与安装范围",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/gitlab_duo_cli/customize.md",
+      "sha256": "dbe839e383468deee16b4ca4beb1ac4c48e31900377aa1ef6d04c5bff4944d7f"
+    },
+    {
+      "path": "doc/user/gitlab_duo_cli/set_up.md",
+      "title": "CLI 安装与认证前提",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/gitlab_duo_cli/set_up.md",
+      "sha256": "5112f715289dcec267968683c92cea0b551247f61820ad4ab087f9023af64fa3"
+    },
+    {
+      "path": "doc/user/gitlab_duo_cli/use.md",
+      "title": "交互模式、Plan / Build 与取消操作",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/gitlab_duo_cli/use.md",
+      "sha256": "f3af9d61a36562d0fa6c9326216e024f5eac92df8544d7fb05f81d3ca70dd1a5"
+    },
+    {
+      "path": "doc/user/model_context_protocol/mcp_server.md",
+      "title": "Cursor、Claude Code 与 mcp-remote 示例",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/model_context_protocol/mcp_server.md",
+      "sha256": "d09cadb42bb8f1d587e5b728cba3b9dbc97f31e9d92afc72f96794da5ab114c8"
+    },
+    {
+      "path": "doc/user/model_context_protocol/mcp_server_tools.md",
+      "title": "MR 工具参数、facet 限制与 patch 工具",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/model_context_protocol/mcp_server_tools.md",
+      "sha256": "0ef93ed1a69cacb3b823a5dc243f6103774ff910c80be85885eacbdd02832b7a"
+    },
+    {
+      "path": "doc/user/project/merge_requests/conflicts.md",
+      "title": "GitLab Duo 冲突处理范围与权限",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/project/merge_requests/conflicts.md",
+      "sha256": "88aa47539dce97efd9009e2ec14fc9702f99e183f87d3f572f49d38aea9f2069"
+    },
+    {
+      "path": "doc/user/project/merge_requests/duo_in_merge_requests.md",
+      "title": "生成 merge commit message",
+      "url": "https://github.com/gitlabhq/gitlabhq/blob/v19.3.3/doc/user/project/merge_requests/duo_in_merge_requests.md",
+      "sha256": "b935546c81371298ee30d160f5fd6b57150c67ae5bd051cef311441b69bd162b"
+    }
+  ]
+}
