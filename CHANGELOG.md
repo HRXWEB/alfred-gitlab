@@ -5,6 +5,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v4.2.2] (2026-10-17)
+* Fix the repository Graph shortcut to use HEAD instead of assuming a main branch
+* Request simple project responses to reduce refresh payloads and cached data
+* Document expected GitLab 14–19 compatibility based on representative upstream
+  source tags, with live JiHu instance verification still pending
+* Add a Chinese HTML briefing on GitLab 19.3 and AI coding workflows
+
 ## [v4.2.1] (2026-09-09)
 * Add project actions to copy SSH and HTTP clone URLs to the system clipboard
 * Preserve Alfred's usage-based ordering for project actions

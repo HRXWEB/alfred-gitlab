@@ -65,6 +65,18 @@ does not hide its last known projects.
 
 ### Compatibility and upgrades
 
+The core API and personal-page routes are expected to work with GitLab
+14–19 (six major versions), based on representative upstream source tags.
+This is a source review, not live certification of every minor release or
+JiHu deployment. See the [Chinese upgrade and AI coding briefing](docs/gitlab-19-upgrade.html)
+for the compatibility matrix, sources, AI prerequisites, and instance checks.
+The machine-readable [source audit](docs/gitlab-compatibility-audit.json) can be
+repeated with `python3 scripts/check_gitlab_compatibility.py`.
+
+Project refreshes request `simple=true` to avoid downloading full project
+settings. The Graph shortcut uses `HEAD`, so it does not assume a branch
+named `main`. These changes do not require per-GitLab-major workflow forks.
+
 The first v4 launch automatically migrates v3.1.0's URL, Keychain credential,
 and project cache into the default host profile. Migration copies rather than
 deletes the legacy settings, credential, and cache, preserving them for a

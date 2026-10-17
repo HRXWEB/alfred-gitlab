@@ -1184,7 +1184,7 @@ def test_workflow_exposes_glrefresh_keyword():
 def test_v4_workflow_metadata():
     workflow = load_plist()
 
-    assert workflow["version"] == "4.2.1"
+    assert workflow["version"] == "4.2.2"
     assert workflow["createdby"] == "HRXWEB"
     assert workflow["bundleid"] == "com.lukewaite.alfred-gitlab"
 
@@ -1301,7 +1301,7 @@ def test_workflow_graph_uids_and_connections_are_valid():
     }.issubset(object_uids)
 
 
-def test_workflow_uses_gitlab_16_subpage_paths():
+def test_workflow_uses_gitlab_subpage_paths():
     workflow = load_plist()
 
     list_items = [
@@ -1315,7 +1315,7 @@ def test_workflow_uses_gitlab_16_subpage_paths():
     assert '"arg":"-/issues"' in list_items[0]
     assert '"arg":"-/merge_requests"' in list_items[0]
     assert '"arg":"-/project_members"' in list_items[0]
-    assert '"arg":"-/network/main"' in list_items[0]
+    assert '"arg":"-/network/HEAD"' in list_items[0]
     assert '"arg":"-/settings/ci_cd"' in list_items[0]
 
 

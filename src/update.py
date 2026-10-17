@@ -48,7 +48,12 @@ def get_projects(api_key: str, url: str) -> Projects:
         response = mureq.get(
             url,
             headers={"PRIVATE-TOKEN": api_key},
-            params={"per_page": 100, "page": page, "membership": "true"},
+            params={
+                "per_page": 100,
+                "page": page,
+                "membership": "true",
+                "simple": "true",
+            },
         )
         response.raise_for_status()
         projects.extend(response.json())

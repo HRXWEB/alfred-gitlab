@@ -3,6 +3,7 @@ from __future__ import annotations
 import runpy
 import sys
 import threading
+from email.message import Message
 from pathlib import Path
 from typing import ClassVar
 
@@ -124,6 +125,40 @@ def test_api_token_is_sent_in_header(monkeypatch):
 
     assert requests[0][1]["headers"] == {"PRIVATE-TOKEN": "example-token"}
     assert "private_token" not in requests[0][1]["params"]
+
+
+def test_simple_project_pages_retain_navigation_and_clone_fields(monkeypatch):
+    project = {
+        "id": 42,
+        "name_with_namespace": "Team / App",
+        "path_with_namespace": "team/app",
+        "web_url": "https://gitlab.example.com/team/app",
+        "ssh_url_to_repo": "git@gitlab.example.com:team/app.git",
+        "http_url_to_repo": "https://gitlab.example.com/team/app.git",
+    }
+    requests = []
+
+    class PageResponse(FakeResponse):
+        def __init__(self, page):
+            self.page = page
+            self.headers = Message()
+            self.headers["x-next-page"] = "2" if page == 1 else ""
+
+        def json(self):
+            return [project] if self.page == 1 else [{**project, "id": 43}]
+
+    def get(url, **kwargs):
+        requests.append(kwargs)
+        return PageResponse(kwargs["params"]["page"])
+
+    monkeypatch.setattr(update.mureq, "get", get)
+    projects = update.get_projects("example-token", "https://gitlab.example.com/api/v4/projects")
+
+    assert [p["id"] for p in projects] == [42, 43]
+    assert projects[0] == project
+    assert [r["params"]["page"] for r in requests] == [1, "2"]
+    assert all(r["params"]["simple"] == "true" for r in requests)
+    assert all(r["params"]["membership"] == "true" for r in requests)
 
 
 def test_refresh_profile_success_replaces_cache_and_clears_error(

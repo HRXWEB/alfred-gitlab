@@ -1,0 +1,449 @@
+{
+  "scope": "Upstream representative-tag source markers only; no server integration tests; JH not certified.",
+  "versions": [
+    {
+      "version": "14.6.1",
+      "ok": true,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v14.6.1/lib/api/projects.rb",
+          "checked_markers": [
+            "membership",
+            "simple",
+            "get feature_category:",
+            "Entities::BasicProjectDetails"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v14.6.1/lib/api/entities/project_identity.rb",
+          "checked_markers": [
+            "name_with_namespace",
+            "path_with_namespace"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v14.6.1/lib/api/entities/basic_project_details.rb",
+          "checked_markers": [
+            "web_url",
+            "ssh_url_to_repo",
+            "http_url_to_repo"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v14.6.1/lib/api/users.rb",
+          "checked_markers": [
+            "resource :user do",
+            "present current_user"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v14.6.1/config/routes/dashboard.rb",
+          "checked_markers": [
+            "merge_requests",
+            "issues",
+            "snippets",
+            "todos",
+            "projects",
+            "starred"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v14.6.1/config/routes/profile.rb",
+          "checked_markers": [
+            "preferences"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v14.6.1/config/routes/repository.rb",
+          "checked_markers": [
+            "resources :network"
+          ],
+          "missing_markers": [],
+          "ok": true
+        }
+      ]
+    },
+    {
+      "version": "15.11.13",
+      "ok": true,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v15.11.13/lib/api/projects.rb",
+          "checked_markers": [
+            "membership",
+            "simple",
+            "get feature_category:",
+            "Entities::BasicProjectDetails"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v15.11.13/lib/api/entities/project_identity.rb",
+          "checked_markers": [
+            "name_with_namespace",
+            "path_with_namespace"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v15.11.13/lib/api/entities/basic_project_details.rb",
+          "checked_markers": [
+            "web_url",
+            "ssh_url_to_repo",
+            "http_url_to_repo"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v15.11.13/lib/api/users.rb",
+          "checked_markers": [
+            "resource :user do",
+            "present current_user"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v15.11.13/config/routes/dashboard.rb",
+          "checked_markers": [
+            "merge_requests",
+            "issues",
+            "snippets",
+            "todos",
+            "projects",
+            "starred"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v15.11.13/config/routes/profile.rb",
+          "checked_markers": [
+            "preferences"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v15.11.13/config/routes/repository.rb",
+          "checked_markers": [
+            "resources :network"
+          ],
+          "missing_markers": [],
+          "ok": true
+        }
+      ]
+    },
+    {
+      "version": "16.11.10",
+      "ok": true,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v16.11.10/lib/api/projects.rb",
+          "checked_markers": [
+            "membership",
+            "simple",
+            "get feature_category:",
+            "Entities::BasicProjectDetails"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v16.11.10/lib/api/entities/project_identity.rb",
+          "checked_markers": [
+            "name_with_namespace",
+            "path_with_namespace"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v16.11.10/lib/api/entities/basic_project_details.rb",
+          "checked_markers": [
+            "web_url",
+            "ssh_url_to_repo",
+            "http_url_to_repo"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v16.11.10/lib/api/users.rb",
+          "checked_markers": [
+            "resource :user do",
+            "present current_user"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v16.11.10/config/routes/dashboard.rb",
+          "checked_markers": [
+            "merge_requests",
+            "issues",
+            "snippets",
+            "todos",
+            "projects",
+            "starred"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v16.11.10/config/routes/profile.rb",
+          "checked_markers": [
+            "preferences"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v16.11.10/config/routes/repository.rb",
+          "checked_markers": [
+            "resources :network"
+          ],
+          "missing_markers": [],
+          "ok": true
+        }
+      ]
+    },
+    {
+      "version": "17.11.7",
+      "ok": true,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v17.11.7/lib/api/projects.rb",
+          "checked_markers": [
+            "membership",
+            "simple",
+            "get feature_category:",
+            "Entities::BasicProjectDetails"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v17.11.7/lib/api/entities/project_identity.rb",
+          "checked_markers": [
+            "name_with_namespace",
+            "path_with_namespace"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v17.11.7/lib/api/entities/basic_project_details.rb",
+          "checked_markers": [
+            "web_url",
+            "ssh_url_to_repo",
+            "http_url_to_repo"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v17.11.7/lib/api/users.rb",
+          "checked_markers": [
+            "resource :user do",
+            "present current_user"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v17.11.7/config/routes/dashboard.rb",
+          "checked_markers": [
+            "merge_requests",
+            "issues",
+            "snippets",
+            "todos",
+            "projects",
+            "starred"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v17.11.7/config/routes/profile.rb",
+          "checked_markers": [
+            "preferences"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v17.11.7/config/routes/repository.rb",
+          "checked_markers": [
+            "resources :network"
+          ],
+          "missing_markers": [],
+          "ok": true
+        }
+      ]
+    },
+    {
+      "version": "18.3.0",
+      "ok": true,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v18.3.0/lib/api/projects.rb",
+          "checked_markers": [
+            "membership",
+            "simple",
+            "get feature_category:",
+            "Entities::BasicProjectDetails"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v18.3.0/lib/api/entities/project_identity.rb",
+          "checked_markers": [
+            "name_with_namespace",
+            "path_with_namespace"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v18.3.0/lib/api/entities/basic_project_details.rb",
+          "checked_markers": [
+            "web_url",
+            "ssh_url_to_repo",
+            "http_url_to_repo"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v18.3.0/lib/api/users.rb",
+          "checked_markers": [
+            "resource :user do",
+            "present current_user"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v18.3.0/config/routes/dashboard.rb",
+          "checked_markers": [
+            "merge_requests",
+            "issues",
+            "snippets",
+            "todos",
+            "projects",
+            "starred"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v18.3.0/config/routes/profile.rb",
+          "checked_markers": [
+            "preferences"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v18.3.0/config/routes/repository.rb",
+          "checked_markers": [
+            "resources :network"
+          ],
+          "missing_markers": [],
+          "ok": true
+        }
+      ]
+    },
+    {
+      "version": "19.3.3",
+      "ok": true,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v19.3.3/lib/api/projects.rb",
+          "checked_markers": [
+            "membership",
+            "simple",
+            "get feature_category:",
+            "Entities::BasicProjectDetails"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v19.3.3/lib/api/entities/project_identity.rb",
+          "checked_markers": [
+            "name_with_namespace",
+            "path_with_namespace"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v19.3.3/lib/api/entities/basic_project_details.rb",
+          "checked_markers": [
+            "web_url",
+            "ssh_url_to_repo",
+            "http_url_to_repo"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v19.3.3/lib/api/users.rb",
+          "checked_markers": [
+            "resource :user do",
+            "present current_user"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v19.3.3/config/routes/dashboard.rb",
+          "checked_markers": [
+            "merge_requests",
+            "issues",
+            "snippets",
+            "todos",
+            "projects",
+            "starred"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v19.3.3/config/routes/profile.rb",
+          "checked_markers": [
+            "preferences"
+          ],
+          "missing_markers": [],
+          "ok": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/gitlabhq/gitlabhq/v19.3.3/config/routes/repository.rb",
+          "checked_markers": [
+            "resources :network"
+          ],
+          "missing_markers": [],
+          "ok": true
+        }
+      ]
+    }
+  ]
+}
